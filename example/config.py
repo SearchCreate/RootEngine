@@ -7,7 +7,7 @@ llm_data = {
     "model":"Qwen/Qwen3-8B"
 }
 
-memory_path = "memory1"
+memory_path = "memory1.txt"
 #系统提示词
 system_prompt = '''
 
@@ -60,7 +60,7 @@ system_prompt = '''
 
 # 工具白名单（填写 tools.py 中注册的工具名称）
 tools_usable_list = [
-    "memorize","file_edit"
+    "file_edit"
 ]
 
 
