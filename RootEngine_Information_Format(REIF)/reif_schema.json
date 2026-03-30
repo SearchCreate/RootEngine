@@ -1,0 +1,103 @@
+
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "REIF Entry",
+  "description": "RootEngine Information Format 条目",
+  "type": "object",
+  "required": ["reif_version", "reif_metadata", "reif_content"],
+  "properties": {
+    "reif_version": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+$",
+      "description": "REIF 规范的版本，如 1.0"
+    },
+    "reif_metadata": {
+      "type": "object",
+      "description": "条目元数据",
+
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{32}$",
+          "description": "唯一识别符"
+        },
+        "name": {
+          "type": "string",
+          "description": "此条目名称"
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "agent_card",
+            "conversation",
+            "tool_registry",
+            "tool_execution"
+          ],
+          "description": "条目类别"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "此条目的版本号"
+        },
+        "description": {
+          "type": ["string","null"],
+          "description": "详细的描述"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "创建时间，格式 ISO 8601"
+        },
+        "updated_at": {
+          "type": ["string","null"],
+          "format": "date-time",
+          "description": "最后修改时间，格式 ISO 8601"
+        },
+        "extra": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "扩展元数据"
+        }
+      },
+      "required": ["id", "category", "created_at"],
+      "additionalProperties": false
+    },
+    "reif_content": {
+      "description": "条目内容，具体结构由 category 决定"
+    }
+  },
+  "additionalProperties": false
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

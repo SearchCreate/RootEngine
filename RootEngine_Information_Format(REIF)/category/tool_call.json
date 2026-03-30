@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "tool_call",
+  "description": "单个工具调用的信息",
+  "type": "object",
+  "properties": {
+    "tool_call_id": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{32}$",
+      "description": "工具调用id"
+    },
+    "tool_name": {
+      "type": "string",
+      "description": "工具调用的名称"
+    },
+    "arguments": {
+      "type": "object",
+      "description": "工具所需的参数，直接按给的工具列表的参数给，不用schema规范",
+      "properties":{}
+    },
+    "created_at": {
+      "type": "string",
+      "description": "创建时间",
+      "format": "date-time"
+    }
+  },
+  "required": ["tool_call_id","tool_name","arguments","created_at"]
+}
