@@ -139,7 +139,7 @@ def reif_validate(reif_params):
     '''
 
     :param reif_params:尽量是json字符串,reif格式的条目，字典和json字符串均兼容,
-    :return: 若没问题返回原条目，若有问题会报错
+    :return: 若没问题返回True，若有问题会报错
     '''
     reif_schema_dict = json.loads(REIF_SCHEMA_JSON)
 
@@ -148,15 +148,7 @@ def reif_validate(reif_params):
     else:
         rp = reif_params.copy()
 
-    try:
-
         validate(instance=rp, schema=reif_schema_dict)
-
-    except ValidationError as e:
-        raise ValueError(more_ValidationError(e))
-
-    except SchemaError as e2:
-        raise SchemaError(f"不符合schema规范")
     return True
 
 

@@ -39,6 +39,8 @@
 
 返回result
 
-
+# schema
+tool_call中的 id 表示 llm 返回的调用id ，表示其自身的 id  
+tool_result 中的 call_id 也表示 llm 返回的id，表示其引用的调用id
 
 

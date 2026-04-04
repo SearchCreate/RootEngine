@@ -1,35 +1,48 @@
 REIF_CONTENT_ARRAY_TOOL_CALL_JSON = r"""{
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "tool_call",
-  "description": "单个工具调用的信息",
+  "description": "单个工具调用的信息，用于存储 LLM 返回的工具调用请求",
   "type": "object",
+  "required": ["id", "type", "function", "created_at"],
   "properties": {
-    "call_id": {
+    "id": {
       "type": "string",
-      "pattern": "^[0-9a-fA-F]{32}$",
-      "description": "工具调用的调用id"
+      "description": "工具调用的唯一标识符，通常由 LLM 生成，用于关联工具结果",
+      "pattern": "^[0-9a-fA-F]{32}$"
     },
-    "call_type":{
-      "type": "string"
-      "description":"工具的调用方式种类"
-      "enum":["function"]
-    }
-    "registry_id": {
+    "type": {
       "type": "string",
-      "description": "工具调用时，被调用工具在注册表中的id"
+      "enum": ["function"],
+      "description": "工具调用类型，目前仅支持 'function'，预留扩展"
     },
-    "arguments": {
+    "function": {
       "type": "object",
-      "description": "工具所需的参数，直接按给的工具列表的参数给，不用schema规范",
-      "properties":{}
+      "required": ["registry_id", "arguments"],
+      "properties": {
+        "registry_id": {
+          "type": "string",
+          "description": "工具名称，应与工具注册表中的名称一致"
+        },
+        "arguments": {
+          "type": "object",
+          "description": "工具所需的参数，以键值对形式给出，具体结构由工具定义",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
     },
     "created_at": {
       "type": "string",
-      "description": "创建时间",
-      "format": "date-time"
+      "format": "date-time",
+      "description": "工具调用创建时间（ISO 8601）"
+    },
+    "extra": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "扩展元数据"
     }
   },
-  "required": ["call_id","registry_id","arguments","created_at"]
+  "additionalProperties": false
 }"""
 
 
@@ -37,7 +50,7 @@ REIF_CONTENT_ARRAY_TOOL_CALL_JSON = r"""{
 
 
 
-REIF_CONTENT_TOOL_REGISTRY_JSON = {
+REIF_CONTENT_TOOL_REGISTRY_JSON = r"""{
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "tool_registry",
   "description": "工具注册表，键为 tool_id（32位十六进制），值为工具信息",
@@ -48,14 +61,14 @@ REIF_CONTENT_TOOL_REGISTRY_JSON = {
       "properties": {
         "name": { "type": "string", "description": "工具名称" },
         "description": { "type": "string", "description": "工具描述" },
-        "call_type": { "type": "string", "enum": ["function"], "description": "工具调用方式" },
-        "function": { "type": "string", "description": "函数引用，格式为 'module.path:func_name' 或运行时内存中的函数对象" },
+        "type": { "type": "string", "enum": ["function"], "description": "工具调用方式" },
+        "function": { "type": "string", "description": "函数引用，内存中的函数对象" },
         "parameters": { "type": "object", "description": "工具参数的 JSON Schema" }
       },
-      "required": ["name", "call_type"],
+      "required": ["name", "type"],
       "allOf": [
         {
-          "if": { "properties": { "call_type": { "const": "function" } } },
+          "if": { "properties": { "type": { "const": "function" } } },
           "then": { "required": ["function", "parameters"] }
         }
       ],
@@ -63,12 +76,12 @@ REIF_CONTENT_TOOL_REGISTRY_JSON = {
     }
   },
   "additionalProperties": false
-}
+}"""
 
 
 
 
-REIF_CONTENT_ARRAY_TOOL_RESULT_JSON = {
+REIF_CONTENT_ARRAY_TOOL_RESULT_JSON = """{
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "tool_result",
   "type": "object",
@@ -88,8 +101,8 @@ REIF_CONTENT_ARRAY_TOOL_RESULT_JSON = {
       "format": "date-time"
     }
   },
-  "required": ["tool_call_id","result_content","created_at"]
-}
+  "required": ["call_id","result_content","created_at"]
+}"""
 
 
 

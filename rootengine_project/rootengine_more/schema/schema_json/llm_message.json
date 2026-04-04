@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "llm_message",
+  "type": "object",
+  "description": "llm的返回格式",
+  "properties": {
+    "role": {
+      "type": "string",
+      "description": "角色信息",
+      "enum": ["system","user","assistant","tool"]
+    },
+    "content": {
+      "type": "string",
+      "description": "此条储存的具体内容，当role = user或assistant或system 填内容，当 role = tool 时填tool_result"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "创建时间 ISO 8601"
+    },
+    "extra": {
+      "type": ["object","null"],
+      "description": "扩展"
+    }
+  },
+  "required": ["role","content","created_at"]
+}
+
+
+//这个是有上文那个json组成的列表（就是外面套； 一层array）
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "llm_messages",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "description": "llm的返回格式",
+    "properties": {
+      "role": {
+        "type": "string",
+        "description": "角色信息",
+        "enum": ["system","user","assistant","tool"]
+      },
+      "content": {
+        "type": "string",
+        "description": "此条储存的具体内容，当role = user或assistant或system 填内容，当 role = tool 时填tool_result"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "description": "创建时间 ISO 8601"
+      },
+      "extra": {
+        "type": ["object","null"],
+        "description": "扩展"
+      }
+    },
+    "required": ["role","content","created_at"]
+  }
+}

@@ -21,37 +21,21 @@ REIF_CONTENT_CONVERSATION_JSON = r"""{
         "type": ["string","null"],
         "description": "文本内容（role = assistant 或 role = tool 可为 null）"
       },
+      
+      "tools":{
+        "type": "array",
+        "description": "工具相关信息",
+        "items": {
+          "description": "具体格式为保持兼容，暂不给予具体格式"
+        }  
+      },
+      
       "created_at": {
         "type": "string",
         "format": "date-time",
         "description": "创建时间 ISO 8601"
       },
-      "tool_refer": {
-        "type":"array",
-        "description": "储存工具调用方面的信息（role = assistant 或 role = tool 时存在）",
-        "items": {
-          "type": "object",
-          "description": "单条工具调用信息",
-          "properties": {
-            "tool_record_id": {
-              "type": "string",
-              "pattern": "^[0-9a-fA-F]{32}$",
-              "description": "工具操作id"
-            },
-            "tool_record_path":{
-              "type": "string",
-              "description": "储存 工具操作 的 python字典(以tool_op_id为键,tool_call和tool_result为值) "
-            },
-            "type": {
-              "type": "string",
-              "description": "此条工具记录的状态，type = call:此时llm返回的是tool请求，type = result：此时是tool返回给llm结果",
-              "enum": ["call","result"]
-            }
-          },
-          "additionalProperties": false,
-          "required": ["tool_record_id", "tool_record_path","type"]
-        }
-      },
+        
       "extra": {
         "type": ["object","null"],
         "additionalProperties": true,
@@ -62,4 +46,49 @@ REIF_CONTENT_CONVERSATION_JSON = r"""{
   }
 }
 """
+
+
+
+
+
+
+
+
+REIF_CONTENT_NO_TOOL_CONVERSATION_JSON = r"""{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "reif_content_base_conversation",
+  "description": "基础对话消息列表（无工具字段）",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "role": {
+        "type": "string",
+        "enum": ["system", "user", "assistant", "tool"]
+      },
+      "content": { "type": ["string", "null"] },
+      "created_at": { "type": "string", "format": "date-time" },
+      "extra": { "type": ["object", "null"], "additionalProperties": true }
+    },
+    "required": ["role", "created_at"]
+  }
+}"""
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

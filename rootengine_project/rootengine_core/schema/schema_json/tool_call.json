@@ -1,28 +1,46 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "tool_call",
-  "description": "单个工具调用的信息",
+  "description": "单个工具调用的信息，用于存储 LLM 返回的工具调用请求",
   "type": "object",
+  "required": ["id", "type", "function", "created_at"],
   "properties": {
-    "tool_call_id": {
+    "call_id": {
       "type": "string",
-      "pattern": "^[0-9a-fA-F]{32}$",
-      "description": "工具调用id"
+      "description": "工具调用的唯一标识符，通常由 LLM 生成，用于关联工具结果",
+      "pattern": "^[0-9a-fA-F]{32}$"
     },
-    "tool_name": {
+    "type": {
       "type": "string",
-      "description": "工具调用的名称"
+      "enum": ["function"],
+      "description": "工具调用类型，目前仅支持 'function'，预留扩展"
     },
-    "arguments": {
+    "function": {
       "type": "object",
-      "description": "工具所需的参数，直接按给的工具列表的参数给，不用schema规范",
-      "properties":{}
+      "required": ["name", "arguments"],
+      "properties": {
+        "registry_id": {
+          "type": "string",
+          "description": "工具名称，应与工具注册表中的名称一致"
+        },
+        "arguments": {
+          "type": "object",
+          "description": "工具所需的参数，以键值对形式给出，具体结构由工具定义",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
     },
     "created_at": {
       "type": "string",
-      "description": "创建时间",
-      "format": "date-time"
+      "format": "date-time",
+      "description": "工具调用创建时间（ISO 8601）"
+    },
+    "extra": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "扩展元数据"
     }
   },
-  "required": ["tool_call_id","tool_name","arguments","created_at"]
+  "additionalProperties": false
 }

@@ -1,7 +1,6 @@
-
-{
+REIF_CONTENT_CONVERSATION_JSON = r"""{
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "conversation_item",
+  "title": "reif_content_conversation",
   "description": "memory数据格式,//此表位于reif_content下",
   "type": "array",
   "items": {
@@ -54,7 +53,7 @@
         }
       },
       "extra": {
-        "type": "object",
+        "type": ["object","null"],
         "additionalProperties": true,
         "description": "扩展数据"
       }
@@ -62,23 +61,5 @@
     "required": ["role","created_at"]
   }
 }
+"""
 
-{
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-{
-
-}
