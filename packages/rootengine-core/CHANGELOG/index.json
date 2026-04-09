@@ -1,0 +1,48 @@
+{
+  "versions": [
+    {
+      "version": "0.5.3",
+      "version_dir": "v0.5.3",
+      "patch_file": "v0.5.3.patch",
+      "tag_name": [],
+      "commit_hash": "07c1a3d4",
+      "commit_message": "小改rootengine_core，创建rootengine",
+      "created_at": "2026-04-12 17:40:08"
+    },
+    {
+      "version": "0.5.1",
+      "version_dir": "v0.5.1",
+      "patch_file": "v0.5.1.patch",
+      "tag_name": [],
+      "commit_hash": "41911d06",
+      "commit_message": "更新了 rootengine_core v0.5.1 主要把 no_too_conversation 改成了 base_conversation",
+      "created_at": "2026-04-12 17:23:51"
+    },
+    {
+      "version": "0.5.0",
+      "version_dir": "v0.5.0",
+      "patch_file": "v0.5.0.patch",
+      "tag_name": [],
+      "commit_hash": "844ba526",
+      "commit_message": "已完成 rootengine_core 并上传  pypi；按 pypi 的格式重新整理了项目根目录",
+      "created_at": "2026-04-12 17:23:14"
+    }
+  ],
+  "commits": {
+    "0.5.0": [
+      {
+        "hash": "844ba52693dde19929613159e7af4028662559cb",
+        "short_hash": "844ba526",
+        "message": "已完成 rootengine_core 并上传  pypi；按 pypi 的格式重新整理了项目根目录"
+      }
+    ],
+    "0.5.1": [
+      {
+        "hash": "41911d067bfbc41b90219203b600d1779b19dab6",
+        "short_hash": "41911d06",
+        "message": "更新了 rootengine_core v0.5.1 主要把 no_too_conversation 改成了 base_conversation"
+      }
+    ],
+    "0.5.3": []
+  }
+}

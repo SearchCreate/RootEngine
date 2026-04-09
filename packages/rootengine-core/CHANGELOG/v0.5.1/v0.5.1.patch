@@ -1,0 +1,451 @@
+diff --git a/packages/rootengine-core/rootengine_core/__init__.py b/packages/rootengine-core/rootengine_core/__init__.py
+index 1d268b0..a933b9b 100644
+--- a/packages/rootengine-core/rootengine_core/__init__.py
++++ b/packages/rootengine-core/rootengine_core/__init__.py
+@@ -1,5 +1,5 @@
+ 
+-from .conversation import NoToolConversation
++from .conversation import BaseConversation
+ from .tool import Tool
+ from .llm import BaseLLM
+ from .llm.openai_adapter import OpenAIAdapter,BaseLLMAdapter
+diff --git a/packages/rootengine-core/rootengine_core/conversation/__init__.py b/packages/rootengine-core/rootengine_core/conversation/__init__.py
+index 9529d5a..c18634e 100644
+--- a/packages/rootengine-core/rootengine_core/conversation/__init__.py
++++ b/packages/rootengine-core/rootengine_core/conversation/__init__.py
+@@ -1 +1 @@
+-from .no_tool_conversation import NoToolConversation
+\ No newline at end of file
++from .base_conversation import BaseConversation
+\ No newline at end of file
+diff --git a/packages/rootengine-core/rootengine_core/conversation/no_tool_conversation.py b/packages/rootengine-core/rootengine_core/conversation/base_conversation.py
+similarity index 88%
+rename from packages/rootengine-core/rootengine_core/conversation/no_tool_conversation.py
+rename to packages/rootengine-core/rootengine_core/conversation/base_conversation.py
+index 01d8d2c..20f59f5 100644
+--- a/packages/rootengine-core/rootengine_core/conversation/no_tool_conversation.py
++++ b/packages/rootengine-core/rootengine_core/conversation/base_conversation.py
+@@ -8,10 +8,10 @@ from ..utils.time import get_iso_timestamp
+ from jsonschema import validate
+ 
+ 
+-from ..schema_runtime.reif_schema import get_json
+-SCHEMA = get_json("conversation.no_tool_conversation")
++from ..schema.runtime.reif_schema import get_json
++SCHEMA = get_json("conversation.base_conversation")
+ 
+-class NoToolConversation:
++class BaseConversation:
+     def __init__(self, conversation_entry: dict = None):
+         # 如果未传自动创建新的
+         if conversation_entry is None:
+@@ -22,7 +22,7 @@ class NoToolConversation:
+         self.messages = self.entry["reif_content"]
+ 
+ 
+-    def create(self)   -> NoToolConversation:
++    def create(self)   -> BaseConversation:
+         """创建新会话"""
+         self.entry = reif_create({"category": "conversation"})
+         # 确保 reif_content 存在且为空列表
+@@ -38,7 +38,7 @@ class NoToolConversation:
+             content: str = None,
+             created_at: str = None,
+             extra: dict = None,
+-            )   -> NoToolConversation :
++            )   -> BaseConversation :
+ 
+         """
+         向会话添加一条消息。
+@@ -87,12 +87,12 @@ class NoToolConversation:
+ 
+ 
+ 
+-    def load_entry(self,entry: dict) -> NoToolConversation :
++    def load_entry(self,entry: dict) -> BaseConversation :
+         """加载整个 conversation 条目"""
+         self.entry = entry
+         self.messages = self.entry["reif_content"]
+         return self
+-    def load_messages(self,messages: list) -> NoToolConversation :
++    def load_messages(self,messages: list) -> BaseConversation :
+         self.messages = messages
+         self.entry["reif_content"] = self.messages
+         return self
+diff --git a/packages/rootengine-core/rootengine_core/docs/conversation/no_tool_converstion.md b/packages/rootengine-core/rootengine_core/docs/conversation/base_converstion.md
+similarity index 72%
+rename from packages/rootengine-core/rootengine_core/docs/conversation/no_tool_converstion.md
+rename to packages/rootengine-core/rootengine_core/docs/conversation/base_converstion.md
+index 97217ca..707958a 100644
+--- a/packages/rootengine-core/rootengine_core/docs/conversation/no_tool_converstion.md
++++ b/packages/rootengine-core/rootengine_core/docs/conversation/base_converstion.md
+@@ -1,20 +1,36 @@
+ # 注意事项
+ - self.entry["reif_content"] 与 self.messages 要值向同一内存地址
+ - add , delete 都未涉及 self.entry ， self.message 的链接问题
+-# NoToolConversation
++- v0.5.1 将no_tool_conversation 改成了 base_conversation
++# BaseConversation
+ 
+ ## r__init__
+ ```python
+-    def __init__(self, reif_entry: dict = None):
++    def __init__(self, conversation_entry: dict = None):
+         # 如果未传自动创建新的
+-        if reif_entry is None:
+-            self.create()
++        if conversation_entry is None:
++             self.create()
++        else:
++            self.entry = conversation_entry
+ 
+-        self.messages = self.reif_entry["reif_content"]
++        self.messages = self.entry["reif_content"]
+ ```
+ 传入 entry ( conversation 条目)，为传则创建新的，  
+ 初始化 self.messages , self.entry["reif_content"] 与 self.messages 要值向同一内存地址
+ 
++## create
++```python
++    def create(self)   -> BaseConversation:
++        """创建新会话"""
++        self.entry = reif_create({"category": "conversation"})
++        # 确保 reif_content 存在且为空列表
++        self.entry["reif_content"] = []
++        # 链接
++        self.messages = self.entry["reif_content"]
++
++        return self
++```
++
+ ## add
+ ```python
+     def add(
+@@ -23,7 +39,7 @@
+             content: str = None,
+             created_at: str = None,
+             extra: dict = None,
+-            )   -> NoToolConversation :
++            )   -> BaseConversation :
+ 
+         """
+         向会话添加一条消息。
+@@ -56,7 +72,7 @@
+ 
+         self.messages.append(item)
+         return self
+-    
++
+ ```
+ 
+ ## delete
+diff --git a/packages/rootengine-core/rootengine_core/schema_runtime/reif_schema.py b/packages/rootengine-core/rootengine_core/schema/runtime/reif_schema.py
+similarity index 99%
+rename from packages/rootengine-core/rootengine_core/schema_runtime/reif_schema.py
+rename to packages/rootengine-core/rootengine_core/schema/runtime/reif_schema.py
+index 495dd5a..1c2b7c4 100644
+--- a/packages/rootengine-core/rootengine_core/schema_runtime/reif_schema.py
++++ b/packages/rootengine-core/rootengine_core/schema/runtime/reif_schema.py
+@@ -6,7 +6,7 @@ JSON文件加载器
+ import json
+ 
+ # JSON字典
+-JSON_DICT = { 'conversation.no_tool_conversation': { '$schema': 'http://json-schema.org/draft-07/schema#',
++JSON_DICT = { 'conversation.base_conversation': { '$schema': 'http://json-schema.org/draft-07/schema#',
+                                          'description': '基础对话消息列表（无工具字段）',
+                                          'items': { 'properties': { 'content': { 'type': [ 'string',
+                                                                                            'null']},
+@@ -307,7 +307,7 @@ def get_json(key: str):
+     """根据键名获取JSON数据
+ 
+     Args:
+-        key: JSON键名，如 'reif_entry', 'conversation.no_tool_conversation'
++        key: JSON键名，如 'reif_entry', 'conversation.base_conversation'
+ 
+     Returns:
+         JSON字典或None（如果不存在）
+diff --git a/packages/rootengine-core/rootengine_core/schema/source/conversation/no_tool_conversation.json b/packages/rootengine-core/rootengine_core/schema/source/conversation/base_conversation.json
+similarity index 100%
+rename from packages/rootengine-core/rootengine_core/schema/source/conversation/no_tool_conversation.json
+rename to packages/rootengine-core/rootengine_core/schema/source/conversation/base_conversation.json
+diff --git a/packages/rootengine-core/rootengine_core/test/test_no_tool_conversation.py b/packages/rootengine-core/rootengine_core/test/test_no_tool_conversation.py
+index 0f05e08..a6b0d97 100644
+--- a/packages/rootengine-core/rootengine_core/test/test_no_tool_conversation.py
++++ b/packages/rootengine-core/rootengine_core/test/test_no_tool_conversation.py
+@@ -9,13 +9,13 @@ if str(_root_dir) not in sys.path:
+     sys.path.insert(0, str(_root_dir))
+ 
+ 
+-class TestNoToolConversationCreate:
+-    """NoToolConversation.create() 测试"""
++class TestBaseConversationCreate:
++    """BaseConversation.create() 测试"""
+ 
+     def test_create_no_args(self):
+         """不传参数时应自动创建新会话"""
+-        from rootengine_core.conversation.no_tool_conversation import NoToolConversation
+-        conv = NoToolConversation()
++        from rootengine_core.conversation.base_conversation import BaseConversation
++        conv = BaseConversation()
+ 
+         assert conv.entry is not None
+         assert conv.entry["reif_metadata"]["category"] == "conversation"
+@@ -24,16 +24,16 @@ class TestNoToolConversationCreate:
+ 
+     def test_create_returns_self(self):
+         """create() 应返回 self"""
+-        from rootengine_core.conversation.no_tool_conversation import NoToolConversation
+-        conv = NoToolConversation()
++        from rootengine_core.conversation.base_conversation import BaseConversation
++        conv = BaseConversation()
+         result = conv.create()
+ 
+         assert result is conv
+ 
+     def test_create_replaces_existing(self):
+         """已存在的会话调用 create() 应替换为新的空会话"""
+-        from rootengine_core.conversation.no_tool_conversation import NoToolConversation
+-        conv = NoToolConversation()
++        from rootengine_core.conversation.base_conversation import BaseConversation
++        conv = BaseConversation()
+         conv.add("user", "hello")
+         assert len(conv.messages) == 1
+ 
+@@ -41,17 +41,17 @@ class TestNoToolConversationCreate:
+         assert len(conv.messages) == 0
+ 
+ 
+-class TestNoToolConversationAdd:
+-    """NoToolConversation.add() 测试"""
++class TestBaseConversationAdd:
++    """BaseConversation.add() 测试"""
+ 
+     @pytest.fixture
+     def conv(self):
+-        from rootengine_core.conversation.no_tool_conversation import NoToolConversation
+-        return NoToolConversation()
++        from rootengine_core.conversation.base_conversation import BaseConversation
++        return BaseConversation()
+ 
+     def test_add_user_message(self, conv):
+         """添加 user 消息"""
+-        with patch("rootengine_core.conversation.no_tool_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
++        with patch("rootengine_core.conversation.base_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
+             conv.add("user", "hello")
+ 
+         assert len(conv.messages) == 1
+@@ -61,7 +61,7 @@ class TestNoToolConversationAdd:
+ 
+     def test_add_system_message(self, conv):
+         """添加 system 消息"""
+-        with patch("rootengine_core.conversation.no_tool_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
++        with patch("rootengine_core.conversation.base_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
+             conv.add("system", "you are helpful")
+ 
+         assert conv.messages[0]["role"] == "system"
+@@ -69,14 +69,14 @@ class TestNoToolConversationAdd:
+ 
+     def test_add_assistant_message(self, conv):
+         """添加 assistant 消息"""
+-        with patch("rootengine_core.conversation.no_tool_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
++        with patch("rootengine_core.conversation.base_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
+             conv.add("assistant", "hello!")
+ 
+         assert conv.messages[0]["role"] == "assistant"
+ 
+     def test_add_auto_timestamp(self, conv):
+         """未传 created_at 时应自动生成"""
+-        with patch("rootengine_core.conversation.no_tool_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
++        with patch("rootengine_core.conversation.base_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
+             conv.add("user", "hello")
+ 
+         assert conv.messages[0]["created_at"] == "2024-01-01T00:00:00Z"
+@@ -97,28 +97,28 @@ class TestNoToolConversationAdd:
+ 
+     def test_add_returns_self(self, conv):
+         """add() 应返回 self，支持链式调用"""
+-        with patch("rootengine_core.conversation.no_tool_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
++        with patch("rootengine_core.conversation.base_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
+             result = conv.add("user", "hello")
+ 
+         assert result is conv
+ 
+     def test_add_chain(self, conv):
+         """链式调用"""
+-        with patch("rootengine_core.conversation.no_tool_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
++        with patch("rootengine_core.conversation.base_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
+             conv.add("system", "you are helpful").add("user", "hello").add("assistant", "hi!")
+ 
+         assert len(conv.messages) == 3
+         assert [m["role"] for m in conv.messages] == ["system", "user", "assistant"]
+ 
+ 
+-class TestNoToolConversationDelete:
+-    """NoToolConversation.delete() 测试"""
++class TestBaseConversationDelete:
++    """BaseConversation.delete() 测试"""
+ 
+     @pytest.fixture
+     def conv_with_messages(self):
+-        from rootengine_core.conversation.no_tool_conversation import NoToolConversation
+-        with patch("rootengine_core.conversation.no_tool_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
+-            conv = NoToolConversation()
++        from rootengine_core.conversation.base_conversation import BaseConversation
++        with patch("rootengine_core.conversation.base_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
++            conv = BaseConversation()
+             conv.add("system", "sys").add("user", "user1").add("assistant", "asy")
+         return conv
+ 
+@@ -142,12 +142,12 @@ class TestNoToolConversationDelete:
+         assert result is conv_with_messages
+ 
+ 
+-class TestNoToolConversationLoad:
+-    """NoToolConversation.load_entry() / load_messages() 测试"""
++class TestBaseConversationLoad:
++    """BaseConversation.load_entry() / load_messages() 测试"""
+ 
+     def test_load_entry(self):
+         """加载完整 entry"""
+-        from rootengine_core.conversation.no_tool_conversation import NoToolConversation
++        from rootengine_core.conversation.base_conversation import BaseConversation
+         entry = {
+             "reif_version": "1.0",
+             "reif_metadata": {
+@@ -160,7 +160,7 @@ class TestNoToolConversationLoad:
+             ]
+         }
+ 
+-        conv = NoToolConversation()
++        conv = BaseConversation()
+         conv.load_entry(entry)
+ 
+         assert conv.entry is entry
+@@ -168,12 +168,12 @@ class TestNoToolConversationLoad:
+ 
+     def test_load_messages(self):
+         """加载消息列表"""
+-        from rootengine_core.conversation.no_tool_conversation import NoToolConversation
++        from rootengine_core.conversation.base_conversation import BaseConversation
+         messages = [
+             {"role": "user", "content": "hello", "created_at": "2024-01-01T00:00:00Z"}
+         ]
+ 
+-        conv = NoToolConversation()
++        conv = BaseConversation()
+         conv.load_messages(messages)
+ 
+         assert conv.messages is messages
+@@ -181,30 +181,30 @@ class TestNoToolConversationLoad:
+ 
+     def test_load_entry_returns_self(self):
+         """load_entry() 应返回 self"""
+-        from rootengine_core.conversation.no_tool_conversation import NoToolConversation
++        from rootengine_core.conversation.base_conversation import BaseConversation
+         entry = {
+             "reif_version": "1.0",
+             "reif_metadata": {"id": "abc", "category": "conversation", "created_at": "2024-01-01T00:00:00Z"},
+             "reif_content": []
+         }
+-        conv = NoToolConversation()
++        conv = BaseConversation()
+         result = conv.load_entry(entry)
+         assert result is conv
+ 
+     def test_load_messages_returns_self(self):
+         """load_messages() 应返回 self"""
+-        from rootengine_core.conversation.no_tool_conversation import NoToolConversation
+-        conv = NoToolConversation()
++        from rootengine_core.conversation.base_conversation import BaseConversation
++        conv = BaseConversation()
+         result = conv.load_messages([])
+         assert result is conv
+ 
+ 
+-class TestNoToolConversationInit:
+-    """NoToolConversation.__init__() 测试"""
++class TestBaseConversationInit:
++    """BaseConversation.__init__() 测试"""
+ 
+     def test_init_with_entry(self):
+         """传入 conversation_entry 时应直接使用"""
+-        from rootengine_core.conversation.no_tool_conversation import NoToolConversation
++        from rootengine_core.conversation.base_conversation import BaseConversation
+         entry = {
+             "reif_version": "1.0",
+             "reif_metadata": {
+@@ -215,7 +215,7 @@ class TestNoToolConversationInit:
+             "reif_content": [{"role": "user", "content": "hi", "created_at": "2024-01-01T00:00:00Z"}]
+         }
+ 
+-        conv = NoToolConversation(conversation_entry=entry)
++        conv = BaseConversation(conversation_entry=entry)
+ 
+         assert conv.entry is entry
+         assert conv.messages == entry["reif_content"]
+diff --git a/packages/rootengine-core/rootengine_core/tool/adapter.py b/packages/rootengine-core/rootengine_core/tool/adapter.py
+index 3089cac..eb058ed 100644
+--- a/packages/rootengine-core/rootengine_core/tool/adapter.py
++++ b/packages/rootengine-core/rootengine_core/tool/adapter.py
+@@ -1,4 +1,4 @@
+-from ..schema_runtime.reif_schema import get_json
++from ..schema.runtime.reif_schema import get_json
+ TOOL_REGISTRY_SCHEMA = get_json("tool.tool_registry")
+ TOOL_CALL_SCHEMA = get_json("tool.tool_call")
+ TOOL_RESULT_SCHEMA = get_json("tool.tool_result")
+diff --git a/packages/rootengine-core/rootengine_core/tool/tool.py b/packages/rootengine-core/rootengine_core/tool/tool.py
+index 9b05968..4dcbd3f 100644
+--- a/packages/rootengine-core/rootengine_core/tool/tool.py
++++ b/packages/rootengine-core/rootengine_core/tool/tool.py
+@@ -2,7 +2,7 @@
+ 
+ import json
+ from jsonschema import validate
+-from ..schema_runtime.reif_schema import get_json
++from ..schema.runtime.reif_schema import get_json
+ TOOL_REGISTRY_SCHEMA = get_json("tool.tool_registry")
+ TOOL_CALL_SCHEMA = get_json("tool.tool_call")
+ TOOL_RESULT_SCHEMA = get_json("tool.tool_result")
+diff --git a/packages/rootengine-core/rootengine_core/utils/generate_json_dict.py b/packages/rootengine-core/rootengine_core/utils/generate_json_dict.py
+index fa6c655..c1959a4 100644
+--- a/packages/rootengine-core/rootengine_core/utils/generate_json_dict.py
++++ b/packages/rootengine-core/rootengine_core/utils/generate_json_dict.py
+@@ -55,7 +55,7 @@ def scan_jsons_to_dict(root_dir: Path, ignore_errors: bool = False) -> Dict[str,
+     结构示例:
+     {
+         'reif_entry': {...JSON内容...},
+-        'conversation.no_tool_conversation': {...JSON内容...},
++        'conversation.base_conversation': {...JSON内容...},
+         'tool.tool_call': {...JSON内容...},
+         ...
+     }
+@@ -76,7 +76,7 @@ def scan_jsons_to_dict(root_dir: Path, ignore_errors: bool = False) -> Dict[str,
+             rel_path = json_file.relative_to(root_dir)
+ 
+             # 将路径转换为点分隔的键名
+-            # 例如: conversation/no_tool_conversation.json -> conversation.no_tool_conversation
++            # 例如: conversation/base_conversation.json -> conversation.base_conversation
+             key_parts = []
+             for part in rel_path.parts:
+                 if part.endswith('.json'):
+@@ -122,7 +122,7 @@ def get_json(key: str):
+     """根据键名获取JSON数据
+ 
+     Args:
+-        key: JSON键名，如 'reif_entry', 'conversation.no_tool_conversation'
++        key: JSON键名，如 'reif_entry', 'conversation.base_conversation'
+ 
+     Returns:
+         JSON字典或None（如果不存在）
+diff --git a/packages/rootengine-core/rootengine_core/utils/reif_func.py b/packages/rootengine-core/rootengine_core/utils/reif_func.py
+index b1a0505..803f6f0 100644
+--- a/packages/rootengine-core/rootengine_core/utils/reif_func.py
++++ b/packages/rootengine-core/rootengine_core/utils/reif_func.py
+@@ -4,7 +4,7 @@ from uuid import uuid4
+ import json
+ from jsonschema import validate,SchemaError,ValidationError
+ 
+-from ..schema_runtime.reif_schema import get_json
++from ..schema.runtime.reif_schema import get_json
+ 
+ SCHEMA = get_json("reif_entry")

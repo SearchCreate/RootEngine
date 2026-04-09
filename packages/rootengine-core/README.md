@@ -36,9 +36,9 @@ REIF（RootEngine Information Format）是一套信息格式规范，定义了 A
 ### 对话管理
 
 ```python
-from rootengine_core import NoToolConversation
+from rootengine_core import BaseConversation
 
-conv = NoToolConversation()
+conv = BaseConversation()
 conv.add("system", "你是一个有帮助的助手")
 conv.add("user", "你好")
 
@@ -53,14 +53,14 @@ print(conv.messages)
 
 ```python
 from rootengine_core import Tool
-from rootengine_core.utils.reif_func import reif_create
+from rootengine_core.utils import create_reif
 
 # 定义一个工具
 def greeting(name, agent=None):
     return f"Hello, {name}!"
 
 # 工具注册表（REIF 格式）
-registry = reif_create({"category": "tool_registry"})
+registry = create_reif({"category": "tool_registry"})
 registry["reif_content"] = {
     "a1b2c3d4e5f6789012345678abcdef01": {
         "name": "greeting",
@@ -127,7 +127,6 @@ adapter = OpenAIAdapter(model="gpt-4o-mini")
 | `utils/reif_func` | REIF 格式创建与验证 |
 
 ## 其他
-- 版本: 虽然这是发出的第一版，但其在内部已有多次迭代，故以 0.5.0 为版号发布
 - utils 里有很多好玩的东西
 ## 许可证
 

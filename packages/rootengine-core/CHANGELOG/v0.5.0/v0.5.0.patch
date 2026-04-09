@@ -1,0 +1,3381 @@
+diff --git a/packages/rootengine-core/rootengine_core/__init__.py b/packages/rootengine-core/rootengine_core/__init__.py
+new file mode 100644
+index 0000000..1d268b0
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/__init__.py
+@@ -0,0 +1,5 @@
++
++from .conversation import NoToolConversation
++from .tool import Tool
++from .llm import BaseLLM
++from .llm.openai_adapter import OpenAIAdapter,BaseLLMAdapter
+diff --git a/packages/rootengine-core/rootengine_core/constants/__init__.py b/packages/rootengine-core/rootengine_core/constants/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/packages/rootengine-core/rootengine_core/constants/conversation.py b/packages/rootengine-core/rootengine_core/constants/conversation.py
+new file mode 100644
+index 0000000..6a74e4d
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/constants/conversation.py
+@@ -0,0 +1,5 @@
++CONVERSATION_ROLE = [
++    "system",
++    "user",
++    "assistant"
++]
+\ No newline at end of file
+diff --git a/packages/rootengine-core/rootengine_core/constants/framework.py b/packages/rootengine-core/rootengine_core/constants/framework.py
+new file mode 100644
+index 0000000..65f8489
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/constants/framework.py
+@@ -0,0 +1,17 @@
++VERSION = {
++    "reif_version":"1.0",
++    "conversation":"0.1.0",
++    "tool_registry":"0.1.0",
++    "tool_call":"0.1.0",
++    "tool_results":"0.1.0",
++    "tool_record":"0.1.0",
++
++}
++
++REIF_CATEGORY = [
++    "agent_card",
++    "conversation",
++    "tool_registry",
++    "tool_record"
++
++    ]
+diff --git a/packages/rootengine-core/rootengine_core/constants/tool.py b/packages/rootengine-core/rootengine_core/constants/tool.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/packages/rootengine-core/rootengine_core/conversation/__init__.py b/packages/rootengine-core/rootengine_core/conversation/__init__.py
+new file mode 100644
+index 0000000..9529d5a
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/conversation/__init__.py
+@@ -0,0 +1 @@
++from .no_tool_conversation import NoToolConversation
+\ No newline at end of file
+diff --git a/packages/rootengine-core/rootengine_core/conversation/no_tool_conversation.py b/packages/rootengine-core/rootengine_core/conversation/no_tool_conversation.py
+new file mode 100644
+index 0000000..01d8d2c
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/conversation/no_tool_conversation.py
+@@ -0,0 +1,106 @@
++
++from ..constants.conversation import CONVERSATION_ROLE
++from pathlib import Path
++from ..utils.reif_func import reif_create,reif_validate
++from ..utils.time import get_iso_timestamp
++
++
++from jsonschema import validate
++
++
++from ..schema_runtime.reif_schema import get_json
++SCHEMA = get_json("conversation.no_tool_conversation")
++
++class NoToolConversation:
++    def __init__(self, conversation_entry: dict = None):
++        # 如果未传自动创建新的
++        if conversation_entry is None:
++             self.create()
++        else:
++            self.entry = conversation_entry
++
++        self.messages = self.entry["reif_content"]
++
++
++    def create(self)   -> NoToolConversation:
++        """创建新会话"""
++        self.entry = reif_create({"category": "conversation"})
++        # 确保 reif_content 存在且为空列表
++        self.entry["reif_content"] = []
++        # 链接
++        self.messages = self.entry["reif_content"]
++
++        return self
++
++    def add(
++            self ,
++            role: str,
++            content: str = None,
++            created_at: str = None,
++            extra: dict = None,
++            )   -> NoToolConversation :
++
++        """
++        向会话添加一条消息。
++
++        :param role: 消息角色，必须为 system/user/assistant/tool 之一。
++        :param content: 文本内容（对 system/user/assistant 必填，对 tool 可选）。
++
++        :param extra: 可选的扩展字典，任意附加信息。
++        :param created_at: 可选时间戳，若不提供则自动生成。
++        :return: self，支持链式调用。
++        """
++        #检验角色
++        if role not in CONVERSATION_ROLE:
++            raise ValueError(f"未知角色: {role}")
++
++        # 生成时间戳
++        if created_at is None:
++            created_at = get_iso_timestamp()
++
++
++        # 构造消息字典
++        item = {
++            "role": role,
++            "content": content,
++            "created_at": created_at
++        }
++
++        if extra:
++            item["extra"] = extra
++
++        self.messages.append(item)
++        return self
++
++    def delete(self, index: int = None):
++        """
++
++        :param index: 索引，若不填默认删除最后一个
++        :return:
++        """
++
++        if index is None:
++            self.messages.pop()
++        else:
++            self.messages.pop(index)
++        return self
++
++
++
++    def load_entry(self,entry: dict) -> NoToolConversation :
++        """加载整个 conversation 条目"""
++        self.entry = entry
++        self.messages = self.entry["reif_content"]
++        return self
++    def load_messages(self,messages: list) -> NoToolConversation :
++        self.messages = messages
++        self.entry["reif_content"] = self.messages
++        return self
++
++    def validate_schema(self) -> bool:
++        if self.reif_entry is None:
++            raise RuntimeError("无会话可校验")
++        reif_validate(self.entry)
++        validate(instance=self.messages, schema = SCHEMA)
++        return True
++
+diff --git a/packages/rootengine-core/rootengine_core/docs/conversation/no_tool_converstion.md b/packages/rootengine-core/rootengine_core/docs/conversation/no_tool_converstion.md
+new file mode 100644
+index 0000000..97217ca
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/docs/conversation/no_tool_converstion.md
+@@ -0,0 +1,95 @@
++# 注意事项
++- self.entry["reif_content"] 与 self.messages 要值向同一内存地址
++- add , delete 都未涉及 self.entry ， self.message 的链接问题
++# NoToolConversation
++
++## r__init__
++```python
++    def __init__(self, reif_entry: dict = None):
++        # 如果未传自动创建新的
++        if reif_entry is None:
++            self.create()
++
++        self.messages = self.reif_entry["reif_content"]
++```
++传入 entry ( conversation 条目)，为传则创建新的，  
++初始化 self.messages , self.entry["reif_content"] 与 self.messages 要值向同一内存地址
++
++## add
++```python
++    def add(
++            self ,
++            role: str,
++            content: str = None,
++            created_at: str = None,
++            extra: dict = None,
++            )   -> NoToolConversation :
++
++        """
++        向会话添加一条消息。
++
++        :param role: 消息角色，必须为 system/user/assistant/tool 之一。
++        :param content: 文本内容（对 system/user/assistant 必填，对 tool 可选）。
++
++        :param extra: 可选的扩展字典，任意附加信息。
++        :param created_at: 可选时间戳，若不提供则自动生成。
++        :return: self，支持链式调用。
++        """
++        #检验角色
++        if role not in CONVERSATION_ROLE:
++            raise ValueError(f"未知角色: {role}")
++
++        # 生成时间戳
++        if created_at is None:
++            created_at = get_iso_timestamp()
++
++
++        # 构造消息字典
++        item = {
++            "role": role,
++            "content": content,
++            "created_at": created_at
++        }
++
++        if extra:
++            item["extra"] = extra
++
++        self.messages.append(item)
++        return self
++    
++```
++
++## delete
++```python
++    def delete(self, index: int = None):
++        """
++
++        :param index: 索引，若不填默认删除最后一个
++        :return:
++        """
++
++        if index is None:
++            self.messages.pop()
++        else:
++            self.messages.pop(index)
++        return self
++```
++看源码注释吧
++
++##
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
+diff --git a/packages/rootengine-core/rootengine_core/docs/llm/llm_adapter.md b/packages/rootengine-core/rootengine_core/docs/llm/llm_adapter.md
+new file mode 100644
+index 0000000..f12888b
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/docs/llm/llm_adapter.md
+@@ -0,0 +1,186 @@
++```markdown
++# OpenAI 适配器教程
++
++## 简介
++
++`llm/openai_adapter.py` 实现了两套格式的互转：
++
++- **框架格式** — 符合你的 REIF 规范
++- **OpenAI 格式** — 兼容 OpenAI API
++
++---
++
++## 核心类
++
++| 类 | 说明 |
++|---|---|
++| `BaseLLMAdapter` | 抽象基类，定义接口 |
++| `OpenAIAdapter` | OpenAI 兼容 API 的适配器实现 |
++
++---
++
++## 快速开始
++
++```python
++from rootengine_core_2.llm.openai_adapter import OpenAIAdapter
++
++# 初始化
++adapter = OpenAIAdapter(
++    model="gpt-4",
++    temperature=0.7,
++    timeout=60
++)
++```
++
++---
++
++## 正向适配：框架 → OpenAI
++
++### 单次调用
++
++```python
++# 框架格式的消息列表
++messages = [
++    {"role": "system", "content": "你是一个助手", "created_at": "..."},
++    {"role": "user", "content": "你好", "created_at": "..."},
++]
++
++# 框架格式的工具注册表
++tool_registry = {
++    "abc123": {
++        "name": "get_weather",
++        "type": "function",
++        "function": {
++            "name": "get_weather",
++            "description": "查询天气",
++            "parameters": {"type": "object", "properties": {...}}
++        }
++    }
++}
++
++# 转换为 OpenAI API 参数
++openai_params = adapter.to_provider(
++    messages=messages,
++    tool_registry=tool_registry,
++    tool_choice="auto"
++)
++
++# openai_params 包含: model, messages, tools, tool_choice, temperature, timeout
++```
++
++### 框架 → OpenAI 的转换规则
++
++| 字段 | 框架格式 | OpenAI 格式 |
++|------|----------|--------------|
++| 消息角色 | `role` | `role` (不变) |
++| 工具 ID | `function.registry_id` | `function.name` |
++| 工具注册表 | `{registry_id: {...}}` | `{tools: [{type, function: {...}}]}` |
++
++---
++
++## 逆向适配：OpenAI → 框架
++
++### 转换 LLM 返回
++
++```python
++# 假设这是 OpenAI API 的原始返回
++openai_response = {
++    "content": "你好！",
++    "tool_calls": [
++        {
++            "id": "call_abc123",
++            "type": "function",
++            "function": {
++                "name": "get_weather",
++                "arguments": {"city": "北京"}
++            }
++        }
++    ],
++    "usage": {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},
++    "created": 1704067200
++}
++
++# 转换为框架格式 (llm_output)
++llm_output = adapter.from_provider(openai_response)
++```
++
++### 转换单条消息
++
++```python
++# OpenAI 返回的消息
++openai_message = {
++    "role": "assistant",
++    "content": "好的，我去查一下天气",
++    "tool_calls": [...]
++}
++
++# 转换为框架格式 (llm_message)，用于存入消息列表
++frame_message = adapter.message_to_frame(openai_message)
++```
++
++### OpenAI → 框架的转换规则
++
++| 场景 | OpenAI 格式 | 框架格式 |
++|------|-------------|----------|
++| assistant 消息 | `"content": "你好"` | `"content": "你好"` |
++| 纯工具调用 | `"content": null` | `"content": null` |
++| tool 消息 | `"content": "结果字符串"` | `"content": {tool_result对象}` |
++| 工具调用 ID | `"function.name"` | `"function.registry_id"` |
++
++---
++
++## 完整对话流程示例
++
++```python
++from rootengine_core_2.llm.openai_adapter import OpenAIAdapter
++
++adapter = OpenAIAdapter(model="gpt-4")
++
++# 1. 构建消息列表（框架格式）
++messages = [
++    {"role": "system", "content": "你是一个助手", "created_at": "..."},
++    {"role": "user", "content": "北京天气怎么样？", "created_at": "..."},
++]
++
++# 2. 转换为 OpenAI 格式并调用 API
++openai_params = adapter.to_provider(messages, tool_registry, tool_choice="auto")
++# 调用 openai_api.chat.completions.create(**openai_params)
++
++# 3. 假设 LLM 返回了工具调用
++llm_output = adapter.from_provider(openai_response)
++
++# 4. 将 assistant 消息存入列表
++messages.append(adapter.message_to_frame({
++    "role": "assistant",
++    "content": llm_output["content"],
++    "tool_calls": llm_output.get("tool_calls"),
++    "created": "..."
++}))
++
++# 5. 执行工具后，将 tool 消息存入列表
++tool_result_message = {
++    "role": "tool",
++    "tool_call_id": "call_abc123",
++    "content": "结果字符串",
++    "created": "..."
++}
++messages.append(tool_result_message)
++```
++
++---
++
++## 扩展其他 Provider
++
++```python
++class AnthropicAdapter(BaseLLMAdapter):
++    def __init__(self, model: str = "claude-3-opus", **config):
++        self.model = model
++        self.config = config
++
++    def to_provider(self, messages, tool_registry, tool_choice, **kwargs): ...
++    def from_provider(self, response): ...
++    def message_to_frame(self, message): ...
++```
++
++继承 `BaseLLMAdapter`，实现三个抽象方法即可。
++```
+\ No newline at end of file
+diff --git a/packages/rootengine-core/rootengine_core/docs/schema/llm_message.md b/packages/rootengine-core/rootengine_core/docs/schema/llm_message.md
+new file mode 100644
+index 0000000..e68555a
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/docs/schema/llm_message.md
+@@ -0,0 +1,131 @@
++```markdown
++# LLM Message Schema 设计
++
++## 概述
++
++`llm_message.json` 定义了 LLM 对话中单条消息的格式，与 OpenAI API 格式解耦，同时兼容常见的角色类型（`system`, `user`, `assistant`, `tool`）。该 Schema 引用 `tool_call.json` 和 `tool_result` 结构（通过 `$ref` 或内联定义）。
++
++## 消息结构
++
++```json
++{
++  "role": "assistant",
++  "content": null,                          // 或 string，或 tool_result 对象
++  "tool_calls": [{...tool_call对象...}],    // 仅 assistant 角色可包含
++  "created_at": "2024-01-01T00:00:00Z",
++  "extra": {...}
++}
++```
++
++```json
++{
++  "role": "tool",
++  "content": {                              // tool_result 对象
++    "call_id": "a1b2...",
++    "result_content": "...",
++    "status": "success"
++  },
++  "tool_call_id": "a1b2...",                // 必填，关联 tool_call.id
++  "created_at": "2024-01-01T00:00:00Z",
++  "extra": {...}
++}
++```
++
++## 字段说明
++
++| 字段 | 类型 | 必填 | 描述 |
++|------|------|------|------|
++| `role` | string | ✅ | 消息角色，枚举值：`system`, `user`, `assistant`, `tool` |
++| `content` | oneOf (`null`, `string`, `object`) | ❌ | 消息内容。`role` 为 `tool` 时，该字段应为 `tool_result` 对象；其他角色可为字符串或 `null` |
++| `tool_calls` | array of `tool_call` | ❌ | 仅当 `role` 为 `assistant` 时可出现，表示模型请求调用的工具列表 |
++| `tool_call_id` | string | 条件必填 | 当 `role` 为 `tool` 时必填，值为对应 `tool_call.id`，用于关联请求与结果 |
++| `created_at` | string (ISO 8601) | ✅ | 消息创建时间 |
++| `extra` | object | ❌ | 扩展元数据，任意键值对 |
++
++## 设计要点
++
++1. **`content` 的多样性**  
++   使用 `oneOf` 支持三种类型：`null`（无内容）、`string`（普通文本）、`object`（用于 `tool` 角色的 `tool_result` 对象）。
++
++2. **`tool_calls` 引用**  
++   通过 `$ref` 引用独立的 `tool_call.json` Schema，保持模块化。
++
++3. **角色约束**  
++   - `assistant` 角色可包含 `tool_calls`，此时 `content` 通常为 `null`。
++   - `tool` 角色必须提供 `tool_call_id`，且 `content` 应为 `tool_result` 对象。
++
++4. **时间格式**  
++   `created_at` 使用 ISO 8601 字符串格式（如 `2024-01-01T00:00:00Z`）。
++
++## 完整 Schema 示例（片段）
++
++```json
++{
++  "$schema": "http://json-schema.org/draft-07/schema#",
++  "title": "llm_message",
++  "description": "LLM 对话消息单条格式，与 OpenAI 格式解耦",
++  "type": "object",
++  "properties": {
++    "role": {
++      "type": "string",
++      "enum": ["system", "user", "assistant", "tool"]
++    },
++    "content": {
++      "oneOf": [
++        { "type": "null" },
++        { "type": "string" },
++        { "$ref": "tool_result.json" }   // 假设有独立定义
++      ]
++    },
++    "tool_calls": {
++      "type": "array",
++      "items": { "$ref": "tool_call.json" }
++    },
++    "tool_call_id": {
++      "type": "string",
++      "pattern": "^[0-9a-fA-F]{32}$"
++    },
++    "created_at": {
++      "type": "string",
++      "format": "date-time"
++    },
++    "extra": {
++      "type": "object",
++      "additionalProperties": true
++    }
++  },
++  "required": ["role", "created_at"],
++  "allOf": [
++    {
++      "if": {
++        "properties": { "role": { "const": "assistant" } }
++      },
++      "then": {
++        "properties": { "tool_calls": { "type": "array" } }
++      }
++    },
++    {
++      "if": {
++        "properties": { "role": { "const": "tool" } }
++      },
++      "then": {
++        "required": ["tool_call_id"],
++        "properties": {
++          "content": { "$ref": "tool_result.json" }
++        }
++      }
++    }
++  ]
++}
++```
++
++> 以上 Schema 示例中 `tool_result.json` 应单独定义，内容包含 `call_id`、`result_content`、`status` 等字段，与 `tool_result` 结构一致。
++
++## 后续可调整项
++
++- 是否需要将 `tool_result` 直接内联到 `content` 的 `oneOf` 中，而不是外部引用？
++- `tool_calls` 是否允许在 `role` 为 `tool` 时出现？当前设计不允许。
++- 是否需要增加 `name` 字段（如 OpenAI 格式中的可选名称）？
++
++如有任何调整需求，请随时提出。
++```
+\ No newline at end of file
+diff --git a/packages/rootengine-core/rootengine_core/docs/schema/tool_call.md b/packages/rootengine-core/rootengine_core/docs/schema/tool_call.md
+new file mode 100644
+index 0000000..58596f7
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/docs/schema/tool_call.md
+@@ -0,0 +1 @@
++tool_call 的 最长那串(如function) 叫  调用 体（body）
+\ No newline at end of file
+diff --git a/packages/rootengine-core/rootengine_core/docs/tool/tool.md b/packages/rootengine-core/rootengine_core/docs/tool/tool.md
+new file mode 100644
+index 0000000..445b56d
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/docs/tool/tool.md
+@@ -0,0 +1,107 @@
++# 注意事项
++
++# Tool
++## r__intit__
++```python
++class Tool:
++    def __init__(self,entry:dict,agent):
++
++        self.entry = entry
++        self.tool_registry = self.entry["reif_content"]
++
++        self.now_tool_call= None
++        self.agent = agent
++```
++- self.agent 是依赖注入
++
++## execute
++```python
++    def execute(self,tool_call:dict, vali:bool=True)  -> Dict:
++        #校验一下格式
++
++
++        self.now_tool_call = tool_call
++        if vali:
++            validate(self.now_tool_call, TOOL_CALL_SCHEMA)
++
++
++        """
++        接受tool_call
++        解析工具的参数
++        寻址，执行工具
++        返回result
++
++        :param tool_call:
++        :return:
++        """
++        tool_result = {}
++
++        # 判断调用方法
++        if self.now_tool_call["type"] == "function":
++
++            def func_call():
++
++                registry_id = self.now_tool_call["function"]["registry_id"]
++
++                # 检查，寻址
++                #判断是否 在tool_registry 里是未知工具
++                if self.tool_registry.get(registry_id) is None:
++                    raise ToolExistError(f"错误： '工具 registry_id': '{registry_id}' 未知工具")
++                #解析参数
++
++                kwargs = self.now_tool_call["function"]["arguments"]
++
++                # 在tool_func_map 里找 工具的函数
++                tool_func = self.tool_func_map.get(registry_id)
++                if tool_func is None:
++                    raise ToolExistError(f"错误： tool_registry 中的 工具'{registry_id} 在 tool_func_map 不存在'")
++
++
++                # 执行
++                try:
++                    result_cont = str(tool_func(**kwargs, agent=self.agent))
++                    status = "success"
++                except Exception as e:
++                    result_cont = None
++                    status = "error"
++                    error_message = e
++
++                # 返回result
++                tool_func_result = {
++                    "call_id": self.now_tool_call["call_id"],
++                    "type": "function",
++                    "function": {
++                    "result_content": result_cont,
++                    "status": status
++                    }
++                }
++
++                if status ==  "error":
++                    tool_result["error_message"] = error_message
++                tool_result["created_at"] = get_iso_timestamp()
++
++
++                return tool_result
++
++            tool_result = func_call()
++
++        else:
++            raise ValueError(f"错误： 未知的调用方式 '{self.now_tool_call["type"]}'")
++
++
++        return tool_result
++
++```
++- 仅支持传入最新的tool_call
++- 会有调用方式的判断
++- 这里把函数工具的调用改成了函数
++## execute_many
++```python
++    def execute_many(self,tool_calls:list) -> list[dict]:
++        tool_results = []
++        for tool_call in tool_calls:
++            tool_result = self.execute(tool_call)
++            tool_results.append(tool_result)
++        return tool_results
++```
++- tool_calls，tool_results 是由组成的tool_call，tool_result 的列表
+\ No newline at end of file
+diff --git a/packages/rootengine-core/rootengine_core/docs/utils/generate_json_dict.md b/packages/rootengine-core/rootengine_core/docs/utils/generate_json_dict.md
+new file mode 100644
+index 0000000..4c1594f
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/docs/utils/generate_json_dict.md
+@@ -0,0 +1,189 @@
++# 注意事项
++- 生成时有原来的jsonload , jsondump 变成了用pprint 防止出现生成的python对象Ture用ture这种事情
++
++
++
++# 正文
++以下是修改后的 `generate_json_dict.py` 使用指南（已删除所有硬编码绝对路径，并将脚本名称统一改为 `generate_json_dict.py`）：
++
++```markdown
++# generate_json_dict.py 使用指南
++
++## 上下文
++
++已对 `generate_json_dict.py` 脚本进行了重大改进，使其更通用：
++
++1. **重命名**：将 `schema` 相关名称改为 `json`，使脚本适用于任何 JSON 文件而不仅仅是 JSON Schema。
++2. **错误处理**：将打印错误改为抛出异常，提供更好的错误控制。
++3. **命令行界面**：添加完整的 `argparse` 支持，便于使用。
++4. **向后兼容**：保留了旧版 `generate_schema_dict` 函数作为别名，旧代码仍可工作。
++
++## 主要改进
++
++### 函数重命名
++
++- `load_schema_from_json()` → `load_json_from_file()`
++- `scan_schemas_to_dict()` → `scan_jsons_to_dict()`
++- `generate_schema_dict()` → `generate_json_dict()`（保留别名）
++- `create_simple_loader()` → `create_json_loader()`
++- 输出模块中的 `get_schema()` → `get_json()`
++- `SCHEMA_DICT` → `JSON_DICT`
++
++### 新功能
++
++- `ignore_errors` 参数：控制是否忽略加载错误
++- 灵活的输出文件命名
++- 完整的命令行帮助系统
++
++## 使用指南
++
++### 命令行使用
++
++```bash
++# 基本用法：扫描目录，生成 json_loader.py
++python generate_json_dict.py ./path/to/json/files
++
++# 指定输出文件名
++python generate_json_dict.py ./path/to/json/files --output-py custom_loader.py
++
++# 同时生成 JSON 文件
++python generate_json_dict.py ./path/to/json/files --output-json data.json
++
++# 忽略加载错误
++python generate_json_dict.py ./path/to/json/files --ignore-errors
++
++# 查看帮助
++python generate_json_dict.py --help
++```
++
++### Python 代码调用
++
++```python
++from generate_json_dict import generate_json_dict
++
++# 基本用法
++generate_json_dict("path/to/json/files")
++
++# 完整参数
++generate_json_dict(
++    input_dir="path/to/json/files",
++    output_py="custom_loader.py",
++    output_json="data.json",
++    ignore_errors=True
++)
++
++# 向后兼容（仍可用）
++from generate_json_dict import generate_schema_dict
++generate_schema_dict("path/to/json/files")
++```
++
++### 生成的 Python 模块使用
++
++```python
++from json_loader import get_json, get_jsons_by_category, list_jsons
++
++# 获取特定 JSON 数据
++data = get_json('reif_entry')
++
++# 获取类别下的所有 JSON
++conversations = get_jsons_by_category('conversation')
++
++# 列出所有可用的键
++all_keys = list_jsons()
++```
++
++## 输出文件说明
++
++### 1. Python 模块文件（默认：`json_loader.py`）
++
++包含以下函数：
++
++- `get_json(key)`：根据点分隔路径获取 JSON 数据
++- `get_jsons_by_category(category)`：获取特定类别下的所有 JSON
++- `list_jsons()`：列出所有可用键名
++- `JSON_DICT`：包含所有 JSON 数据的字典
++
++### 2. JSON 文件（可选）
++
++原始字典的 JSON 格式，便于查看和调试。
++
++## 典型使用场景
++
++### 1. 为 RootEngine 项目生成 Schema 加载器
++
++```bash
++python generate_json_dict.py "path/to/schema/source" --output-py core2_schemas.py
++```
++
++### 2. 集成到构建流程
++
++在项目的 `setup.py` 或构建脚本中调用：
++
++```python
++# setup.py
++from generate_json_dict import generate_json_dict
++
++def build_schema_module():
++    generate_json_dict("schemas", "schemas_loader.py")
++```
++
++### 3. 测试不同目录
++
++```bash
++# 测试目录是否存在 JSON 文件
++python generate_json_dict.py ./test_dir --ignore-errors
++```
++
++## 验证计划
++
++1. **语法检查**
++
++   ```bash
++   python -m py_compile generate_json_dict.py
++   ```
++
++2. **帮助文档测试**
++
++   ```bash
++   python generate_json_dict.py --help
++   ```
++
++3. **实际使用测试**
++
++   ```bash
++   # 使用现有目录测试
++   python generate_json_dict.py "path/to/schema/source" --output-py test_loader.py
++
++   # 检查生成的模块
++   python -c "from test_loader import list_jsons; print('Keys:', list_jsons())"
++   ```
++
++4. **向后兼容性测试**
++
++   ```python
++   # 测试旧版 API
++   from generate_json_dict import main, generate_schema_dict
++   import warnings
++
++   # 应显示弃用警告但正常工作
++   main("path/to/schemas", True)
++   generate_schema_dict("path/to/schemas")
++   ```
++
++## 关键文件路径
++
++- 默认输出：`json_loader.py` 和可选的 `jsons.json`
++
++## 注意事项
++
++1. 如果目录不存在，脚本会抛出 `FileNotFoundError`。
++2. 如果没有找到 JSON 文件，会抛出 `ValueError`。
++3. 默认不忽略错误，遇到无效 JSON 会抛出异常。
++4. 生成的 Python 模块不依赖外部库，可直接使用。
++```
++
++主要修改点：
++- 所有 `generate_schema_dict.py` 替换为 `generate_json_dict.py`。
++- 删除了绝对路径行（如 `D:\GitHub_Project\RootEngine\...`）。
++- 保留了占位符 `./path/to/json/files` 等通用路径。
++- 在“向后兼容性测试”中保留了旧函数名 `generate_schema_dict` 和 `main`，因为脚本仍提供别名支持。
+\ No newline at end of file
+diff --git a/packages/rootengine-core/rootengine_core/docs/utils/sys_path_change.md b/packages/rootengine-core/rootengine_core/docs/utils/sys_path_change.md
+new file mode 100644
+index 0000000..504b023
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/docs/utils/sys_path_change.md
+@@ -0,0 +1,51 @@
++# 其他
++接口函数定义：
++函数名：discover_package
++函数返回值:  
++格式：
++```python
++def discover_plugin():
++    return{
++        "key":"在注册表里的唯一键（str）",
++        "value":"此件所对应的值(数据种类不限)"
++    }
++```
++
++# 简介
++扫描一个目录下的包，并形成映射子字典
++# 功能
++扫描这个目录  
++执行约定的接口函数（discover_plugin）获取约定格式的信息
++# code
++## sys_path_change
++
++```python
++class sys_path_change:
++    """
++    负责临时跳转到另一个路径去运行程序
++    """
++
++    def __init__(self,enter_path):
++        self._original_path = sys.path.copy()
++        self.enter_path = str(Path(enter_path).resolve())
++
++    def __enter__(self):
++        sys.path.insert(0,self.enter_path)
++        return self
++
++    def __exit__(self,exc_type,exc_value,traceback):
++        sys.path[:] = self._original_path
++        return False
++
++```
++
++临时跳转到另一个路径执行程序，
++在目录扫描等领域有应用
++
++
++
++使用试例
++```python
++with sys_path_change(your_enter_path):
++    pass
++```
+\ No newline at end of file
+diff --git a/packages/rootengine-core/rootengine_core/llm/__init__.py b/packages/rootengine-core/rootengine_core/llm/__init__.py
+new file mode 100644
+index 0000000..e06f622
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/llm/__init__.py
+@@ -0,0 +1,2 @@
++from .llm import BaseLLM
++from .openai_adapter import BaseLLMAdapter,OpenAIAdapter
+diff --git a/packages/rootengine-core/rootengine_core/llm/llm.py b/packages/rootengine-core/rootengine_core/llm/llm.py
+new file mode 100644
+index 0000000..d35361d
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/llm/llm.py
+@@ -0,0 +1,37 @@
++from typing import Optional,Dict,List,Any
++
++from abc import ABC,abstractmethod
++
++
++class BaseLLM(ABC):
++
++
++    @abstractmethod
++
++    def call(self,
++             messages:List[dict[str,Any]],
++             tool_registry:Optional[List[Dict[str, Any]]],
++             tool_choice: Optional[str],
++             **kwargs)\
++            -> Dict[str, Any]:
++        """
++
++        :param messages: 消息列表 参考 ../schema/source/llm/llm_message.json
++        :param tool_registry: 工具注册表 参考 ../schema/source/tool/tool_registry.json
++        :param tool_choice: 工具选择策略 参考 ../schema/source/llm/tool_choice.json
++        :param kwargs: 拓展任意字段
++        :return: 参考 ../schema/source/llm/llm_output.json
++
++        """
++        pass
++
++
++
++
++
++
++
++
++
++
++
+diff --git a/packages/rootengine-core/rootengine_core/llm/openai_adapter.py b/packages/rootengine-core/rootengine_core/llm/openai_adapter.py
+new file mode 100644
+index 0000000..5b2c41d
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/llm/openai_adapter.py
+@@ -0,0 +1,235 @@
++"""
++LLM Provider 适配器：框架格式 ↔ 各 Provider 格式
++
++用法：
++    adapter = OpenAIAdapter(model="gpt-4", api_key="...")
++    openai_params = adapter.to_provider(messages, tool_registry, tool_choice)
++    # 调用 OpenAI API...
++    llm_output = adapter.from_provider(openai_response)
++"""
++from abc import ABC, abstractmethod
++from typing import Any, Dict, List, Optional, Union
++
++
++# ─────────────────────────────────────────────────────────────────────────────
++# 基类
++# ─────────────────────────────────────────────────────────────────────────────
++
++class BaseLLMAdapter(ABC):
++    """LLM 适配器基类，所有 Provider 适配器需继承此类"""
++
++    @abstractmethod
++    def to_provider(
++        self,
++        messages: List[Dict[str, Any]],
++        tool_registry: Optional[Dict[str, Any]] = None,
++        tool_choice: Optional[Union[str, Dict]] = None,
++        **kwargs
++    ) -> Dict[str, Any]:
++        """
++        框架格式 → Provider 格式
++
++        :param messages: 框架消息列表 (llm_message[])
++        :param tool_registry: 框架工具注册表
++        :param tool_choice: 工具选择策略
++        :return: Provider API 调用参数
++        """
++        pass
++
++    @abstractmethod
++    def from_provider(self, response: Dict[str, Any]) -> Dict[str, Any]:
++        """
++        Provider 响应格式 → 框架格式 (llm_output)
++
++        :param response: Provider API 返回的原始响应
++        :return: 框架 llm_output 格式
++        """
++        pass
++
++    @abstractmethod
++    def message_to_frame(self, message: Dict[str, Any]) -> Dict[str, Any]:
++        """
++        单条 Provider 消息 → 框架格式 (llm_message)
++
++        用于把 Provider 返回的消息转成框架格式后再存入 messages 列表
++
++        :param message: Provider 格式的单条消息
++        :return: 框架 llm_message 格式
++        """
++        pass
++
++
++# ─────────────────────────────────────────────────────────────────────────────
++# OpenAI 适配器
++# ─────────────────────────────────────────────────────────────────────────────
++
++class OpenAIAdapter(BaseLLMAdapter):
++    """OpenAI 兼容 API 适配器"""
++
++    def __init__(
++        self,
++        model: str = "gpt-4",
++        **config
++    ):
++        """
++        :param model: 模型名称
++        :param config: 其他 OpenAI API 配置（temperature, timeout 等）
++        """
++        self.model = model
++        self.config = config
++
++    def to_provider(
++        self,
++        messages: List[Dict[str, Any]],
++        tool_registry: Optional[Dict[str, Any]] = None,
++        tool_choice: Optional[Union[str, Dict]] = None,
++        **kwargs
++    ) -> Dict[str, Any]:
++        result = {
++            "model": self.model,
++            "messages": self._convert_messages(messages),
++        }
++
++        if tool_registry:
++            result["tools"] = self._convert_tool_registry(tool_registry)
++
++        if tool_choice is not None:
++            result["tool_choice"] = self._convert_tool_choice(tool_choice)
++
++        result.update(self.config)
++        result.update(kwargs)
++        return result
++
++    def from_provider(self, response: Dict[str, Any]) -> Dict[str, Any]:
++        content = response.get("content")
++        tool_calls = response.get("tool_calls")
++
++        if content is None and not tool_calls:
++            llm_content = None
++        else:
++            llm_content = content
++
++        llm_tool_calls = None
++        if tool_calls:
++            llm_tool_calls = self._convert_tool_calls_from_openai(tool_calls)
++
++        return {
++            "content": llm_content,
++            "tool_calls": llm_tool_calls,
++            "usage": self._normalize_usage(response.get("usage")),
++            "created_at": response.get("created") or response.get("created_at"),
++        }
++
++    def message_to_frame(self, message: Dict[str, Any]) -> Dict[str, Any]:
++        role = message["role"]
++        frame_msg = {
++            "role": role,
++            "created_at": message.get("created_at") or message.get("created"),
++        }
++
++        if role == "tool":
++            frame_msg["tool_call_id"] = message["tool_call_id"]
++            frame_msg["content"] = {
++                "call_id": message["tool_call_id"],
++                "type": "function",
++                "function": {
++                    "result_content": message["content"],
++                    "status": "success",
++                },
++                "created_at": frame_msg["created_at"],
++            }
++        else:
++            frame_msg["content"] = message.get("content")
++
++            if role == "assistant" and message.get("tool_calls"):
++                frame_msg["tool_calls"] = self._convert_tool_calls_from_openai(message["tool_calls"])
++
++        return frame_msg
++
++    # ─────────────────────────────────────────────────────────────────────────
++    # 内部转换方法
++    # ─────────────────────────────────────────────────────────────────────────
++
++    def _convert_messages(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
++        """框架消息列表 → OpenAI 消息列表"""
++        openai_messages = []
++        for msg in messages:
++            role = msg["role"]
++            openai_msg = {"role": role}
++
++            content = msg.get("content")
++            if role == "tool":
++                if isinstance(content, dict):
++                    openai_msg["content"] = content.get("result_content", "")
++                else:
++                    openai_msg["content"] = content or ""
++            else:
++                openai_msg["content"] = content
++
++            if role == "assistant" and msg.get("tool_calls"):
++                openai_msg["tool_calls"] = self._convert_tool_calls_to_openai(msg["tool_calls"])
++
++            openai_messages.append(openai_msg)
++        return openai_messages
++
++    def _convert_tool_calls_to_openai(self, tool_calls: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
++        """框架 tool_calls → OpenAI tool_calls"""
++        return [
++            {
++                "id": call["id"],
++                "type": call["type"],
++                "function": {
++                    "name": call["function"]["registry_id"],
++                    "arguments": call["function"]["arguments"],
++                },
++            }
++            for call in tool_calls
++        ]
++
++    def _convert_tool_calls_from_openai(self, tool_calls: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
++        """OpenAI tool_calls → 框架 tool_calls"""
++        from ..utils.time import get_iso_timestamp
++        created_at = get_iso_timestamp()
++        return [
++            {
++                "id": call["id"],
++                "type": call["type"],
++                "function": {
++                    "registry_id": call["function"]["name"],
++                    "arguments": call["function"]["arguments"],
++                },
++                "created_at": created_at,
++            }
++            for call in tool_calls
++        ]
++
++    def _convert_tool_registry(self, tool_registry: Dict[str, Any]) -> List[Dict[str, Any]]:
++        """框架工具注册表 → OpenAI tools"""
++        openai_tools = []
++        for registry_id, tool_info in tool_registry.items():
++            func_info = tool_info.get("function", {})
++            openai_tools.append({
++                "type": "function",
++                "function": {
++                    "name": registry_id,
++                    "description": func_info.get("description", ""),
++                    "parameters": func_info.get("parameters", {"type": "object", "properties": {}}),
++                },
++            })
++        return openai_tools
++
++    def _convert_tool_choice(self, tool_choice: Union[str, Dict]) -> Union[str, Dict]:
++        """工具选择策略转换"""
++        if isinstance(tool_choice, str):
++            return tool_choice
++        return tool_choice
++
++    def _normalize_usage(self, usage: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
++        """标准化 usage"""
++        if usage is None:
++            return None
++        return {
++            "prompt_tokens": usage.get("prompt_tokens", 0),
++            "completion_tokens": usage.get("completion_tokens", 0),
++            "total_tokens": usage.get("total_tokens", 0),
++        }
+diff --git a/packages/rootengine-core/rootengine_core/schema/source/conversation/no_tool_conversation.json b/packages/rootengine-core/rootengine_core/schema/source/conversation/no_tool_conversation.json
+new file mode 100644
+index 0000000..ccbd939
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/schema/source/conversation/no_tool_conversation.json
+@@ -0,0 +1,40 @@
++{
++  "$schema": "http://json-schema.org/draft-07/schema#",
++  "title": "reif_content_base_conversation",
++  "description": "基础对话消息列表（无工具字段）",
++  "type": "array",
++  "items": {
++    "type": "object",
++    "properties": {
++      "role": {
++        "type": "string",
++        "enum": [
++          "system",
++          "user",
++          "assistant"
++        ]
++      },
++      "content": {
++        "type": [
++          "string",
++          "null"
++        ]
++      },
++      "created_at": {
++        "type": "string",
++        "format": "date-time"
++      },
++      "extra": {
++        "type": [
++          "object",
++          "null"
++        ],
++        "additionalProperties": true
++      }
++    },
++    "required": [
++      "role",
++      "created_at"
++    ]
++  }
++}
+\ No newline at end of file
+diff --git a/packages/rootengine-core/rootengine_core/schema/source/llm/llm_message.json b/packages/rootengine-core/rootengine_core/schema/source/llm/llm_message.json
+new file mode 100644
+index 0000000..50a54f8
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/schema/source/llm/llm_message.json
+@@ -0,0 +1,96 @@
++{
++  "$schema": "http://json-schema.org/draft-07/schema#",
++  "title": "llm_message",
++  "description": "LLM 对话消息单条格式，与 OpenAI 格式解耦",
++  "type": "object",
++  "properties": {
++    "role": {
++      "type": "string",
++      "enum": ["system", "user", "assistant", "tool"],
++      "description": "消息角色"
++    },
++    "content": {
++      "description": "消息内容",
++      "oneOf": [
++        {
++          "type": "null",
++          "description": "assistant 无文字内容时（如纯工具调用）"
++        },
++        {
++          "type": "string",
++          "description": "system/user/assistant 普通文字内容"
++        },
++        {
++          "type": "object",
++          "description": "tool 角色时为 tool_result 对象"
++        }
++      ]
++    },
++    "tool_calls": {
++      "type": "array",
++      "description": "LLM 工具调用列表，仅 assistant 消息可能包含",
++      "items": {
++        "$ref": "../tool/tool_call.json"
++      }
++    },
++    "tool_call_id": {
++      "type": "string",
++      "pattern": "^[0-9a-fA-F]{32}$",
++      "description": "tool 角色必填，关联到 assistant 消息 tool_calls 中对应 call 的 id"
++    },
++    "created_at": {
++      "type": "string",
++      "format": "date-time",
++      "description": "创建时间 ISO 8601"
++    },
++    "extra": {
++      "type": ["object", "null"],
++      "additionalProperties": true,
++      "description": "扩展数据"
++    }
++  },
++  "required": ["role", "created_at"],
++  "allOf": [
++    {
++      "if": {
++        "properties": {
++          "role": {
++            "const": "tool"
++          }
++        }
++      },
++      "then": {
++        "properties": {
++          "content": {
++            "type": "object",
++            "description": "tool 角色的 content 必须为 tool_result 对象"
++          },
++          "tool_call_id": {
++            "type": "string",
++            "pattern": "^[0-9a-fA-F]{32}$"
++          }
++        },
++        "required": ["tool_call_id"]
++      }
++    },
++    {
++      "if": {
++        "properties": {
++          "role": {
++            "const": "assistant"
++          }
++        }
++      },
++      "then": {
++        "properties": {
++          "tool_calls": {
++            "type": "array",
++            "items": {
++              "$ref": "tool/tool_call.json"
++            }
++          }
++        }
++      }
++    }
++  ]
++}
+diff --git a/packages/rootengine-core/rootengine_core/schema/source/llm/llm_output.json b/packages/rootengine-core/rootengine_core/schema/source/llm/llm_output.json
+new file mode 100644
+index 0000000..ad6b210
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/schema/source/llm/llm_output.json
+@@ -0,0 +1,50 @@
++{
++  "$schema": "http://json-schema.org/draft-07/schema#",
++  "title": "llm_output",
++  "description": "LLM 单次调用的返回格式",
++  "type": "object",
++  "properties": {
++    "content": {
++      "description": "LLM 回复的文字内容，无文字时为 null（纯工具调用场景）",
++      "oneOf": [
++        { "type": "null" },
++        { "type": "string" }
++      ]
++    },
++    "tool_calls": {
++      "type": "array",
++      "description": "LLM 发起的工具调用列表，无工具调用时为 null",
++      "items": {
++        "$ref": "../tool/tool_call.json"
++      }
++    },
++    "usage": {
++      "type": "object",
++      "description": "Token 用量统计",
++      "properties": {
++        "prompt_tokens": {
++          "type": "integer",
++          "description": "输入 prompt 消耗的 token 数"
++        },
++        "completion_tokens": {
++          "type": "integer",
++          "description": "生成回复消耗的 token 数"
++        },
++        "total_tokens": {
++          "type": "integer",
++          "description": "总 token 数"
++        }
++      }
++    },
++    "created_at": {
++      "type": "string",
++      "format": "date-time",
++      "description": "LLM 返回时间，ISO 8601 格式"
++    },
++    "extra": {
++      "type": ["object", "null"],
++      "additionalProperties": true,
++      "description": "扩展数据"
++    }
++  }
++}
+diff --git a/packages/rootengine-core/rootengine_core/schema/source/llm/tool_choice.json b/packages/rootengine-core/rootengine_core/schema/source/llm/tool_choice.json
+new file mode 100644
+index 0000000..fade62d
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/schema/source/llm/tool_choice.json
+@@ -0,0 +1,39 @@
++{
++  "$schema": "http://json-schema.org/draft-07/schema#",
++  "title": " Tool Choice Schema(仿openai，其中function.name 改成了 func.registry_id)",
++  "description": "Controls how the model uses tools. Can be a simple string mode or an object specifying a forced function call.",
++  "type": ["string", "object"],
++  "oneOf": [
++    {
++      "title": "Simple Mode",
++      "type": "string",
++      "enum": ["auto", "none", "required"],
++      "description": "Auto: model decides; None: no tool call; Required: model must call at least one tool."
++    },
++    {
++      "title": "Specific Function Call",
++      "type": "object",
++      "properties": {
++        "type": {
++          "type": "string",
++          "const": "function",
++          "description": "Must be 'function'."
++        },
++        "function": {
++          "type": "object",
++          "properties": {
++            "registry_id": {
++              "type": "string",
++              "format": "uuid",
++              "description": "tool 在注册表的 registry_id "
++            }
++          },
++          "required": ["registry_id"],
++          "additionalProperties": false
++        }
++      },
++      "required": ["type", "function"],
++      "additionalProperties": false
++    }
++  ]
++}
+\ No newline at end of file
+diff --git a/packages/rootengine-core/rootengine_core/schema/source/reif_entry.json b/packages/rootengine-core/rootengine_core/schema/source/reif_entry.json
+new file mode 100644
+index 0000000..68a1eb2
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/schema/source/reif_entry.json
+@@ -0,0 +1,70 @@
++{
++  "$schema": "http://json-schema.org/draft-07/schema#",
++  "title": "REIF Entry",
++  "description": "RootEngine Information Format 条目",
++  "type": "object",
++  "required": ["reif_version", "reif_metadata", "reif_content"],
++  "properties": {
++    "reif_version": {
++      "type": "string",
++      "pattern": "^1\\.[0-9]+$",
++      "description": "REIF 规范的版本，如 1.0"
++    },
++    "reif_metadata": {
++      "type": "object",
++      "description": "条目元数据",
++
++      "properties": {
++        "id": {
++          "type": "string",
++          "pattern": "^[0-9a-fA-F]{32}$",
++          "description": "唯一识别符"
++        },
++        "name": {
++          "type": "string",
++          "description": "此条目名称"
++        },
++        "category": {
++          "type": "string",
++          "enum": [
++            "agent_card",
++            "conversation",
++            "tool_registry",
++            "tool_record"
++          ],
++          "description": "条目类别"
++        },
++        "version": {
++          "type": "string",
++          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
++          "description": "此条目的版本号"
++        },
++        "description": {
++          "type": ["string","null"],
++          "description": "详细的描述"
++        },
++        "created_at": {
++          "type": "string",
++          "format": "date-time",
++          "description": "创建时间，格式 ISO 8601"
++        },
++        "updated_at": {
++          "type": ["string","null"],
++          "format": "date-time",
++          "description": "最后修改时间，格式 ISO 8601"
++        },
++        "extra": {
++          "type": ["object","null"],
++          "additionalProperties": true,
++          "description": "扩展数据"
++        }
++      },
++      "required": ["id", "category", "created_at"],
++      "additionalProperties": false
++    },
++    "reif_content": {
++      "description": "条目内容，具体结构由 category 决定"
++    }
++  },
++  "additionalProperties": false
++}
+\ No newline at end of file
+diff --git a/packages/rootengine-core/rootengine_core/schema/source/tool/tool_call.json b/packages/rootengine-core/rootengine_core/schema/source/tool/tool_call.json
+new file mode 100644
+index 0000000..16d0359
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/schema/source/tool/tool_call.json
+@@ -0,0 +1,55 @@
++{
++  "$schema": "http://json-schema.org/draft-07/schema#",
++  "title": "tool_call",
++  "description": "单个工具调用的信息，用于存储 LLM 返回的工具调用请求",
++  "type": "object",
++
++  "properties": {
++    "id": {
++      "type": "string",
++      "description": "工具调用的唯一标识符，通常由 LLM 生成，用于关联工具结果",
++      "pattern": "^[0-9a-fA-F]{32}$"
++    },
++    "type": {
++      "type": "string",
++      "enum": ["function"],
++      "description": "工具调用类型，目前仅支持 'function'，预留扩展"
++    },
++    "function": {
++      "type": "object",
++      "required": ["registry_id", "arguments"],
++      "properties": {
++        "registry_id": {
++          "type": "string",
++          "description": "工具名称，应与工具注册表中的名称一致"
++        },
++        "arguments": {
++          "type": "object",
++          "description": "工具所需的参数，以键值对形式给出，具体结构由工具定义",
++          "additionalProperties": true
++        }
++      },
++      "additionalProperties": false
++    },
++    "created_at": {
++      "type": "string",
++      "format": "date-time",
++      "description": "工具调用创建时间（ISO 8601）"
++    },
++    "extra": {
++      "type": "object",
++      "additionalProperties": true,
++      "description": "扩展元数据"
++    }
++  },
++  "required": ["id", "type", "created_at"],
++  "allOf": [
++    {
++      "if": { "properties": { "type": { "const": "function" } } },
++      "then": {
++        "required": ["function"]
++      }
++    }
++  ],
++  "additionalProperties": false
++}
+\ No newline at end of file
+diff --git a/packages/rootengine-core/rootengine_core/schema/source/tool/tool_func_map.json b/packages/rootengine-core/rootengine_core/schema/source/tool/tool_func_map.json
+new file mode 100644
+index 0000000..da8032e
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/schema/source/tool/tool_func_map.json
+@@ -0,0 +1,15 @@
++{
++  "$schema": "http://json-schema.org/draft-07/schema#",
++  "title": "tool_func_map",
++  "description": "工具函数映射字典",
++  "type": "object",
++  "patternProperties": {
++    "^[0-9a-fA-F]{32}$": {
++      "function": {
++        "description": "python 函数对象"
++      }
++    }
++  },
++  "required": ["^[0-9a-fA-F]{32}$"],
++  "additionalProperties": false
++}
+\ No newline at end of file
+diff --git a/packages/rootengine-core/rootengine_core/schema/source/tool/tool_registry.json b/packages/rootengine-core/rootengine_core/schema/source/tool/tool_registry.json
+new file mode 100644
+index 0000000..54a1060
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/schema/source/tool/tool_registry.json
+@@ -0,0 +1,37 @@
++{
++  "$schema": "http://json-schema.org/draft-07/schema#",
++  "title": "tool_registry",
++  "description": "工具注册表，键为 tool_id（32位十六进制），值为工具信息",
++  "type": "object",
++  "patternProperties": {
++    "^[0-9a-fA-F]{32}$": {
++      "type": "object",
++      "properties": {
++        "name": { "type": "string", "description": "工具名称" },
++        "description": { "type": "string", "description": "工具描述" },
++        "type": { "type": "string", "enum": ["function"], "description": "工具调用方式" },
++        
++        "function": { 
++          "type": "object",
++          "description": "函数调用",
++          "properties": {
++            "name": {"type": "string", "description": "工具名称"},
++            "description": {"type": "string", "description": "工具介绍"},
++            "parameters": { "type": "object", "description": "工具参数" }
++          },
++          "additionalProperties": false
++            
++        }
++      },
++      "required": ["name", "type"],
++      "allOf": [
++        {
++          "if": { "properties": { "type": { "const": "function" } } },
++          "then": { "required": ["function"] }
++        }
++      ],
++      "additionalProperties": false
++    }
++  },
++  "additionalProperties": false
++}
+\ No newline at end of file
+diff --git a/packages/rootengine-core/rootengine_core/schema/source/tool/tool_result.json b/packages/rootengine-core/rootengine_core/schema/source/tool/tool_result.json
+new file mode 100644
+index 0000000..9935309
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/schema/source/tool/tool_result.json
+@@ -0,0 +1,68 @@
++{
++  "$schema": "http://json-schema.org/draft-07/schema#",
++  "title": "tool_result",
++  "type": "object",
++  "properties": {
++    "call_id": {
++      "type": "string",
++      "pattern": "^[0-9a-fA-F]{32}$",
++      "description": "工具调用的id"
++    },
++    "type": {
++      "type": "string",
++      "enum": ["function"],
++      "description": "工具调用方式"
++    },
++    "function": {
++      "type": "object",
++      "description": "函数调用方式",
++      "properties": {
++        "result_content": {
++          "type": "string",
++          "description": "工具结果的内容"
++        },
++        "status": {
++          "type": "string",
++          "description": "工具执行情况",
++          "enum": ["success","error","timeout","cancelled","pending","running"]
++        },
++        "error_message": {
++          "type": "string",
++          "description": "错误信息，仅 status：error 时存在"
++        }
++      },
++      "required": ["result_content","status"],
++      "allOf": [
++        {
++          "if": {
++            "properties": {
++              "status": {
++                "const": "error"
++              }
++            }
++          },
++          "then": {
++            "required": ["error_message"]
++          }
++        }
++      ]
++    },
++    "created_at": {
++      "type": "string",
++      "description": "创建时间",
++      "format": "date-time"
++    },
++    "extra": {
++      "type": "object",
++      "description": "扩展"
++    }
++  },
++  "required": ["call_id","created_at"],
++  "allOf": [
++    {
++      "if": {"properties":{"type": {"const": "function"}}},
++      "then": {"required": ["function"]}
++    }
++  ]
++}
++
+diff --git a/packages/rootengine-core/rootengine_core/schema_runtime/reif_schema.py b/packages/rootengine-core/rootengine_core/schema_runtime/reif_schema.py
+new file mode 100644
+index 0000000..495dd5a
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/schema_runtime/reif_schema.py
+@@ -0,0 +1,338 @@
++"""
++JSON文件加载器
++无需外部依赖
++"""
++
++import json
++
++# JSON字典
++JSON_DICT = { 'conversation.no_tool_conversation': { '$schema': 'http://json-schema.org/draft-07/schema#',
++                                         'description': '基础对话消息列表（无工具字段）',
++                                         'items': { 'properties': { 'content': { 'type': [ 'string',
++                                                                                           'null']},
++                                                                    'created_at': { 'format': 'date-time',
++                                                                                    'type': 'string'},
++                                                                    'extra': { 'additionalProperties': True,
++                                                                               'type': [ 'object',
++                                                                                         'null']},
++                                                                    'role': { 'enum': [ 'system',
++                                                                                        'user',
++                                                                                        'assistant'],
++                                                                              'type': 'string'}},
++                                                    'required': [ 'role',
++                                                                  'created_at'],
++                                                    'type': 'object'},
++                                         'title': 'reif_content_base_conversation',
++                                         'type': 'array'},
++  'llm.llm_message': { '$schema': 'http://json-schema.org/draft-07/schema#',
++                       'allOf': [ { 'if': { 'properties': { 'role': { 'const': 'tool'}}},
++                                    'then': { 'properties': { 'content': { 'description': 'tool '
++                                                                                          '角色的 '
++                                                                                          'content '
++                                                                                          '必须为 '
++                                                                                          'tool_result '
++                                                                                          '对象',
++                                                                           'type': 'object'},
++                                                              'tool_call_id': { 'pattern': '^[0-9a-fA-F]{32}$',
++                                                                                'type': 'string'}},
++                                              'required': ['tool_call_id']}},
++                                  { 'if': { 'properties': { 'role': { 'const': 'assistant'}}},
++                                    'then': { 'properties': { 'tool_calls': { 'items': { '$ref': 'tool/tool_call.json'},
++                                                                              'type': 'array'}}}}],
++                       'description': 'LLM 对话消息单条格式，与 OpenAI 格式解耦',
++                       'properties': { 'content': { 'description': '消息内容',
++                                                    'oneOf': [ { 'description': 'assistant '
++                                                                                '无文字内容时（如纯工具调用）',
++                                                                 'type': 'null'},
++                                                               { 'description': 'system/user/assistant '
++                                                                                '普通文字内容',
++                                                                 'type': 'string'},
++                                                               { 'description': 'tool '
++                                                                                '角色时为 '
++                                                                                'tool_result '
++                                                                                '对象',
++                                                                 'type': 'object'}]},
++                                       'created_at': { 'description': '创建时间 '
++                                                                      'ISO '
++                                                                      '8601',
++                                                       'format': 'date-time',
++                                                       'type': 'string'},
++                                       'extra': { 'additionalProperties': True,
++                                                  'description': '扩展数据',
++                                                  'type': ['object', 'null']},
++                                       'role': { 'description': '消息角色',
++                                                 'enum': [ 'system',
++                                                           'user',
++                                                           'assistant',
++                                                           'tool'],
++                                                 'type': 'string'},
++                                       'tool_call_id': { 'description': 'tool '
++                                                                        '角色必填，关联到 '
++                                                                        'assistant '
++                                                                        '消息 '
++                                                                        'tool_calls '
++                                                                        '中对应 '
++                                                                        'call '
++                                                                        '的 id',
++                                                         'pattern': '^[0-9a-fA-F]{32}$',
++                                                         'type': 'string'},
++                                       'tool_calls': { 'description': 'LLM '
++                                                                      '工具调用列表，仅 '
++                                                                      'assistant '
++                                                                      '消息可能包含',
++                                                       'items': { '$ref': '../tool/tool_call.json'},
++                                                       'type': 'array'}},
++                       'required': ['role', 'created_at'],
++                       'title': 'llm_message',
++                       'type': 'object'},
++  'llm.llm_output': { '$schema': 'http://json-schema.org/draft-07/schema#',
++                      'description': 'LLM 单次调用的返回格式',
++                      'properties': { 'content': { 'description': 'LLM '
++                                                                  '回复的文字内容，无文字时为 '
++                                                                  'null（纯工具调用场景）',
++                                                   'oneOf': [ {'type': 'null'},
++                                                              { 'type': 'string'}]},
++                                      'created_at': { 'description': 'LLM '
++                                                                     '返回时间，ISO '
++                                                                     '8601 格式',
++                                                      'format': 'date-time',
++                                                      'type': 'string'},
++                                      'extra': { 'additionalProperties': True,
++                                                 'description': '扩展数据',
++                                                 'type': ['object', 'null']},
++                                      'tool_calls': { 'description': 'LLM '
++                                                                     '发起的工具调用列表，无工具调用时为 '
++                                                                     'null',
++                                                      'items': { '$ref': '../tool/tool_call.json'},
++                                                      'type': 'array'},
++                                      'usage': { 'description': 'Token 用量统计',
++                                                 'properties': { 'completion_tokens': { 'description': '生成回复消耗的 '
++                                                                                                       'token '
++                                                                                                       '数',
++                                                                                        'type': 'integer'},
++                                                                 'prompt_tokens': { 'description': '输入 '
++                                                                                                   'prompt '
++                                                                                                   '消耗的 '
++                                                                                                   'token '
++                                                                                                   '数',
++                                                                                    'type': 'integer'},
++                                                                 'total_tokens': { 'description': '总 '
++                                                                                                  'token '
++                                                                                                  '数',
++                                                                                   'type': 'integer'}},
++                                                 'type': 'object'}},
++                      'title': 'llm_output',
++                      'type': 'object'},
++  'llm.tool_choice': { '$schema': 'http://json-schema.org/draft-07/schema#',
++                       'description': 'Controls how the model uses tools. Can '
++                                      'be a simple string mode or an object '
++                                      'specifying a forced function call.',
++                       'oneOf': [ { 'description': 'Auto: model decides; None: '
++                                                   'no tool call; Required: '
++                                                   'model must call at least '
++                                                   'one tool.',
++                                    'enum': ['auto', 'none', 'required'],
++                                    'title': 'Simple Mode',
++                                    'type': 'string'},
++                                  { 'additionalProperties': False,
++                                    'properties': { 'function': { 'additionalProperties': False,
++                                                                  'properties': { 'registry_id': { 'description': 'tool '
++                                                                                                                  '在注册表的 '
++                                                                                                                  'registry_id ',
++                                                                                                   'format': 'uuid',
++                                                                                                   'type': 'string'}},
++                                                                  'required': [ 'registry_id'],
++                                                                  'type': 'object'},
++                                                    'type': { 'const': 'function',
++                                                              'description': 'Must '
++                                                                             'be '
++                                                                             "'function'.",
++                                                              'type': 'string'}},
++                                    'required': ['type', 'function'],
++                                    'title': 'Specific Function Call',
++                                    'type': 'object'}],
++                       'title': ' Tool Choice Schema(仿openai，其中function.name '
++                                '改成了 func.registry_id)',
++                       'type': ['string', 'object']},
++  'reif_entry': { '$schema': 'http://json-schema.org/draft-07/schema#',
++                  'additionalProperties': False,
++                  'description': 'RootEngine Information Format 条目',
++                  'properties': { 'reif_content': { 'description': '条目内容，具体结构由 '
++                                                                   'category '
++                                                                   '决定'},
++                                  'reif_metadata': { 'additionalProperties': False,
++                                                     'description': '条目元数据',
++                                                     'properties': { 'category': { 'description': '条目类别',
++                                                                                   'enum': [ 'agent_card',
++                                                                                             'conversation',
++                                                                                             'tool_registry',
++                                                                                             'tool_record'],
++                                                                                   'type': 'string'},
++                                                                     'created_at': { 'description': '创建时间，格式 '
++                                                                                                    'ISO '
++                                                                                                    '8601',
++                                                                                     'format': 'date-time',
++                                                                                     'type': 'string'},
++                                                                     'description': { 'description': '详细的描述',
++                                                                                      'type': [ 'string',
++                                                                                                'null']},
++                                                                     'extra': { 'additionalProperties': True,
++                                                                                'description': '扩展数据',
++                                                                                'type': [ 'object',
++                                                                                          'null']},
++                                                                     'id': { 'description': '唯一识别符',
++                                                                             'pattern': '^[0-9a-fA-F]{32}$',
++                                                                             'type': 'string'},
++                                                                     'name': { 'description': '此条目名称',
++                                                                               'type': 'string'},
++                                                                     'updated_at': { 'description': '最后修改时间，格式 '
++                                                                                                    'ISO '
++                                                                                                    '8601',
++                                                                                     'format': 'date-time',
++                                                                                     'type': [ 'string',
++                                                                                               'null']},
++                                                                     'version': { 'description': '此条目的版本号',
++                                                                                  'pattern': '^[0-9]+\\.[0-9]+\\.[0-9]+$',
++                                                                                  'type': 'string'}},
++                                                     'required': [ 'id',
++                                                                   'category',
++                                                                   'created_at'],
++                                                     'type': 'object'},
++                                  'reif_version': { 'description': 'REIF '
++                                                                   '规范的版本，如 '
++                                                                   '1.0',
++                                                    'pattern': '^1\\.[0-9]+$',
++                                                    'type': 'string'}},
++                  'required': ['reif_version', 'reif_metadata', 'reif_content'],
++                  'title': 'REIF Entry',
++                  'type': 'object'},
++  'tool.tool_call': { '$schema': 'http://json-schema.org/draft-07/schema#',
++                      'additionalProperties': False,
++                      'allOf': [ { 'if': { 'properties': { 'type': { 'const': 'function'}}},
++                                   'then': {'required': ['function']}}],
++                      'description': '单个工具调用的信息，用于存储 LLM 返回的工具调用请求',
++                      'properties': { 'created_at': { 'description': '工具调用创建时间（ISO '
++                                                                     '8601）',
++                                                      'format': 'date-time',
++                                                      'type': 'string'},
++                                      'extra': { 'additionalProperties': True,
++                                                 'description': '扩展元数据',
++                                                 'type': 'object'},
++                                      'function': { 'additionalProperties': False,
++                                                    'properties': { 'arguments': { 'additionalProperties': True,
++                                                                                   'description': '工具所需的参数，以键值对形式给出，具体结构由工具定义',
++                                                                                   'type': 'object'},
++                                                                    'registry_id': { 'description': '工具名称，应与工具注册表中的名称一致',
++                                                                                     'type': 'string'}},
++                                                    'required': [ 'registry_id',
++                                                                  'arguments'],
++                                                    'type': 'object'},
++                                      'id': { 'description': '工具调用的唯一标识符，通常由 '
++                                                             'LLM 生成，用于关联工具结果',
++                                              'pattern': '^[0-9a-fA-F]{32}$',
++                                              'type': 'string'},
++                                      'type': { 'description': '工具调用类型，目前仅支持 '
++                                                               "'function'，预留扩展",
++                                                'enum': ['function'],
++                                                'type': 'string'}},
++                      'required': ['id', 'type', 'created_at'],
++                      'title': 'tool_call',
++                      'type': 'object'},
++  'tool.tool_registry': { '$schema': 'http://json-schema.org/draft-07/schema#',
++                          'additionalProperties': False,
++                          'description': '工具注册表，键为 tool_id（32位十六进制），值为工具信息',
++                          'patternProperties': { '^[0-9a-fA-F]{32}$': { 'additionalProperties': False,
++                                                                        'allOf': [ { 'if': { 'properties': { 'type': { 'const': 'function'}}},
++                                                                                     'then': { 'required': [ 'function']}}],
++                                                                        'properties': { 'description': { 'description': '工具描述',
++                                                                                                         'type': 'string'},
++                                                                                        'function': { 'additionalProperties': False,
++                                                                                                      'description': '函数调用',
++                                                                                                      'properties': { 'description': { 'description': '工具介绍',
++                                                                                                                                       'type': 'string'},
++                                                                                                                      'name': { 'description': '工具名称',
++                                                                                                                                'type': 'string'},
++                                                                                                                      'parameters': { 'description': '工具参数',
++                                                                                                                                      'type': 'object'}},
++                                                                                                      'type': 'object'},
++                                                                                        'name': { 'description': '工具名称',
++                                                                                                  'type': 'string'},
++                                                                                        'type': { 'description': '工具调用方式',
++                                                                                                  'enum': [ 'function'],
++                                                                                                  'type': 'string'}},
++                                                                        'required': [ 'name',
++                                                                                      'type'],
++                                                                        'type': 'object'}},
++                          'title': 'tool_registry',
++                          'type': 'object'},
++  'tool.tool_result': { '$schema': 'http://json-schema.org/draft-07/schema#',
++                        'allOf': [ { 'if': { 'properties': { 'type': { 'const': 'function'}}},
++                                     'then': {'required': ['function']}}],
++                        'properties': { 'call_id': { 'description': '工具调用的id',
++                                                     'pattern': '^[0-9a-fA-F]{32}$',
++                                                     'type': 'string'},
++                                        'created_at': { 'description': '创建时间',
++                                                        'format': 'date-time',
++                                                        'type': 'string'},
++                                        'extra': { 'description': '扩展',
++                                                   'type': 'object'},
++                                        'function': { 'allOf': [ { 'if': { 'properties': { 'status': { 'const': 'error'}}},
++                                                                   'then': { 'required': [ 'error_message']}}],
++                                                      'description': '函数调用方式',
++                                                      'properties': { 'error_message': { 'description': '错误信息，仅 '
++                                                                                                        'status：error '
++                                                                                                        '时存在',
++                                                                                         'type': 'string'},
++                                                                      'result_content': { 'description': '工具结果的内容',
++                                                                                          'type': 'string'},
++                                                                      'status': { 'description': '工具执行情况',
++                                                                                  'enum': [ 'success',
++                                                                                            'error',
++                                                                                            'timeout',
++                                                                                            'cancelled',
++                                                                                            'pending',
++                                                                                            'running'],
++                                                                                  'type': 'string'}},
++                                                      'required': [ 'result_content',
++                                                                    'status'],
++                                                      'type': 'object'},
++                                        'type': { 'description': '工具调用方式',
++                                                  'enum': ['function'],
++                                                  'type': 'string'}},
++                        'required': ['call_id', 'created_at'],
++                        'title': 'tool_result',
++                        'type': 'object'}}
++
++def get_json(key: str):
++    """根据键名获取JSON数据
++
++    Args:
++        key: JSON键名，如 'reif_entry', 'conversation.no_tool_conversation'
++
++    Returns:
++        JSON字典或None（如果不存在）
++    """
++    return JSON_DICT.get(key)
++
++
++def get_jsons_by_category(category: str):
++    """根据类别获取JSON数据
++
++    Args:
++        category: 类别名，如 'conversation', 'tool'
++
++    Returns:
++        该类别下的所有JSON字典
++    """
++    result = {}
++    for key, json_data in JSON_DICT.items():
++        if key.startswith(category + '.'):
++            result[key] = json_data
++        elif key == category:
++            result[key] = json_data
++    return result
++
++
++def list_jsons() -> list:
++    """返回所有可用的JSON键名列表"""
++    return list(JSON_DICT.keys())
+diff --git a/packages/rootengine-core/rootengine_core/test/__init__.py b/packages/rootengine-core/rootengine_core/test/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/packages/rootengine-core/rootengine_core/test/test_no_tool_conversation.py b/packages/rootengine-core/rootengine_core/test/test_no_tool_conversation.py
+new file mode 100644
+index 0000000..0f05e08
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/test/test_no_tool_conversation.py
+@@ -0,0 +1,221 @@
++import pytest
++import sys
++from pathlib import Path
++from unittest.mock import MagicMock, patch
++
++# 添加根目录到 sys.path
++_root_dir = Path(__file__).parent.parent.parent
++if str(_root_dir) not in sys.path:
++    sys.path.insert(0, str(_root_dir))
++
++
++class TestNoToolConversationCreate:
++    """NoToolConversation.create() 测试"""
++
++    def test_create_no_args(self):
++        """不传参数时应自动创建新会话"""
++        from rootengine_core.conversation.no_tool_conversation import NoToolConversation
++        conv = NoToolConversation()
++
++        assert conv.entry is not None
++        assert conv.entry["reif_metadata"]["category"] == "conversation"
++        assert conv.entry["reif_content"] == []
++        assert conv.messages == []
++
++    def test_create_returns_self(self):
++        """create() 应返回 self"""
++        from rootengine_core.conversation.no_tool_conversation import NoToolConversation
++        conv = NoToolConversation()
++        result = conv.create()
++
++        assert result is conv
++
++    def test_create_replaces_existing(self):
++        """已存在的会话调用 create() 应替换为新的空会话"""
++        from rootengine_core.conversation.no_tool_conversation import NoToolConversation
++        conv = NoToolConversation()
++        conv.add("user", "hello")
++        assert len(conv.messages) == 1
++
++        conv.create()
++        assert len(conv.messages) == 0
++
++
++class TestNoToolConversationAdd:
++    """NoToolConversation.add() 测试"""
++
++    @pytest.fixture
++    def conv(self):
++        from rootengine_core.conversation.no_tool_conversation import NoToolConversation
++        return NoToolConversation()
++
++    def test_add_user_message(self, conv):
++        """添加 user 消息"""
++        with patch("rootengine_core.conversation.no_tool_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
++            conv.add("user", "hello")
++
++        assert len(conv.messages) == 1
++        assert conv.messages[0]["role"] == "user"
++        assert conv.messages[0]["content"] == "hello"
++        assert conv.messages[0]["created_at"] == "2024-01-01T00:00:00Z"
++
++    def test_add_system_message(self, conv):
++        """添加 system 消息"""
++        with patch("rootengine_core.conversation.no_tool_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
++            conv.add("system", "you are helpful")
++
++        assert conv.messages[0]["role"] == "system"
++        assert conv.messages[0]["content"] == "you are helpful"
++
++    def test_add_assistant_message(self, conv):
++        """添加 assistant 消息"""
++        with patch("rootengine_core.conversation.no_tool_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
++            conv.add("assistant", "hello!")
++
++        assert conv.messages[0]["role"] == "assistant"
++
++    def test_add_auto_timestamp(self, conv):
++        """未传 created_at 时应自动生成"""
++        with patch("rootengine_core.conversation.no_tool_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
++            conv.add("user", "hello")
++
++        assert conv.messages[0]["created_at"] == "2024-01-01T00:00:00Z"
++
++    def test_add_with_extra(self, conv):
++        """添加带 extra 的消息"""
++        extra = {"key": "value"}
++        conv.add("user", "hello", extra=extra)
++
++        assert conv.messages[0]["extra"] == extra
++
++    def test_add_invalid_role(self, conv):
++        """无效角色应抛出 ValueError"""
++        with pytest.raises(ValueError) as exc_info:
++            conv.add("invalid_role", "hello")
++
++        assert "invalid_role" in str(exc_info.value)
++
++    def test_add_returns_self(self, conv):
++        """add() 应返回 self，支持链式调用"""
++        with patch("rootengine_core.conversation.no_tool_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
++            result = conv.add("user", "hello")
++
++        assert result is conv
++
++    def test_add_chain(self, conv):
++        """链式调用"""
++        with patch("rootengine_core.conversation.no_tool_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
++            conv.add("system", "you are helpful").add("user", "hello").add("assistant", "hi!")
++
++        assert len(conv.messages) == 3
++        assert [m["role"] for m in conv.messages] == ["system", "user", "assistant"]
++
++
++class TestNoToolConversationDelete:
++    """NoToolConversation.delete() 测试"""
++
++    @pytest.fixture
++    def conv_with_messages(self):
++        from rootengine_core.conversation.no_tool_conversation import NoToolConversation
++        with patch("rootengine_core.conversation.no_tool_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
++            conv = NoToolConversation()
++            conv.add("system", "sys").add("user", "user1").add("assistant", "asy")
++        return conv
++
++    def test_delete_last(self, conv_with_messages):
++        """不传索引默认删除最后一条"""
++        conv_with_messages.delete()
++
++        assert len(conv_with_messages.messages) == 2
++        assert conv_with_messages.messages[-1]["role"] == "user"
++
++    def test_delete_by_index(self, conv_with_messages):
++        """按索引删除"""
++        conv_with_messages.delete(0)
++
++        assert len(conv_with_messages.messages) == 2
++        assert conv_with_messages.messages[0]["role"] == "user"
++
++    def test_delete_returns_self(self, conv_with_messages):
++        """delete() 应返回 self"""
++        result = conv_with_messages.delete()
++        assert result is conv_with_messages
++
++
++class TestNoToolConversationLoad:
++    """NoToolConversation.load_entry() / load_messages() 测试"""
++
++    def test_load_entry(self):
++        """加载完整 entry"""
++        from rootengine_core.conversation.no_tool_conversation import NoToolConversation
++        entry = {
++            "reif_version": "1.0",
++            "reif_metadata": {
++                "id": "abc123",
++                "category": "conversation",
++                "created_at": "2024-01-01T00:00:00Z"
++            },
++            "reif_content": [
++                {"role": "user", "content": "hello", "created_at": "2024-01-01T00:00:00Z"}
++            ]
++        }
++
++        conv = NoToolConversation()
++        conv.load_entry(entry)
++
++        assert conv.entry is entry
++        assert conv.messages == entry["reif_content"]
++
++    def test_load_messages(self):
++        """加载消息列表"""
++        from rootengine_core.conversation.no_tool_conversation import NoToolConversation
++        messages = [
++            {"role": "user", "content": "hello", "created_at": "2024-01-01T00:00:00Z"}
++        ]
++
++        conv = NoToolConversation()
++        conv.load_messages(messages)
++
++        assert conv.messages is messages
++        assert conv.entry["reif_content"] is messages
++
++    def test_load_entry_returns_self(self):
++        """load_entry() 应返回 self"""
++        from rootengine_core.conversation.no_tool_conversation import NoToolConversation
++        entry = {
++            "reif_version": "1.0",
++            "reif_metadata": {"id": "abc", "category": "conversation", "created_at": "2024-01-01T00:00:00Z"},
++            "reif_content": []
++        }
++        conv = NoToolConversation()
++        result = conv.load_entry(entry)
++        assert result is conv
++
++    def test_load_messages_returns_self(self):
++        """load_messages() 应返回 self"""
++        from rootengine_core.conversation.no_tool_conversation import NoToolConversation
++        conv = NoToolConversation()
++        result = conv.load_messages([])
++        assert result is conv
++
++
++class TestNoToolConversationInit:
++    """NoToolConversation.__init__() 测试"""
++
++    def test_init_with_entry(self):
++        """传入 conversation_entry 时应直接使用"""
++        from rootengine_core.conversation.no_tool_conversation import NoToolConversation
++        entry = {
++            "reif_version": "1.0",
++            "reif_metadata": {
++                "id": "abc123",
++                "category": "conversation",
++                "created_at": "2024-01-01T00:00:00Z"
++            },
++            "reif_content": [{"role": "user", "content": "hi", "created_at": "2024-01-01T00:00:00Z"}]
++        }
++
++        conv = NoToolConversation(conversation_entry=entry)
++
++        assert conv.entry is entry
++        assert conv.messages == entry["reif_content"]
+diff --git a/packages/rootengine-core/rootengine_core/test/test_tool.py b/packages/rootengine-core/rootengine_core/test/test_tool.py
+new file mode 100644
+index 0000000..08227e7
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/test/test_tool.py
+@@ -0,0 +1,193 @@
++import pytest
++import sys
++from pathlib import Path
++from unittest.mock import MagicMock, patch
++
++# 添加根目录到 sys.path
++_root_dir = Path(__file__).parent.parent.parent
++if str(_root_dir) not in sys.path:
++    sys.path.insert(0, str(_root_dir))
++
++
++class TestToolExecute:
++    """Tool.execute() 测试"""
++
++    @pytest.fixture
++    def mock_agent(self):
++        return MagicMock(name="agent")
++
++    @pytest.fixture
++    def mock_tool_func(self):
++        def func(**kwargs):
++            return "hello world"
++        return func
++
++    @pytest.fixture
++    def mock_tool_registry(self, mock_tool_func):
++        return {
++            "abc123def456789012345678901234ab": {
++                "name": "test_tool",
++                "type": "function",
++                "function": {
++                    "name": "test_tool",
++                    "description": "A test tool",
++                    "parameters": {"type": "object", "properties": {"msg": {"type": "string"}}}
++                }
++            }
++        }
++
++    @pytest.fixture
++    def tool_registry_entry(self, mock_tool_registry):
++        return {
++            "reif_version": "1.0",
++            "reif_metadata": {
++                "id": "a1b2c3d4e5f6789012345678abcdef01",
++                "category": "tool_registry",
++                "version": "0.1.0",
++                "created_at": "2024-01-01T00:00:00Z"
++            },
++            "reif_content": mock_tool_registry
++        }
++
++    @pytest.fixture
++    def valid_tool_call(self):
++        return {
++            "id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
++            "type": "function",
++            "function": {
++                "registry_id": "abc123def456789012345678901234ab",
++                "arguments": {"msg": "test"}
++            },
++            "created_at": "2024-01-01T00:00:00Z"
++        }
++
++    @pytest.fixture
++    def tool_instance(self, tool_registry_entry, mock_agent, mock_tool_func):
++        from rootengine_core.tool.tool import Tool
++        return Tool(
++            tool_registry_entry=tool_registry_entry,
++            agent=mock_agent,
++            tool_func_map={"abc123def456789012345678901234ab": mock_tool_func}
++        )
++
++    def test_execute_success(self, tool_instance, valid_tool_call, mock_tool_func):
++        """正常执行工具调用"""
++        with patch("rootengine_core.tool.tool.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
++            result = tool_instance.execute(valid_tool_call, vali=False)
++
++        assert result["call_id"] == "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
++        assert result["function"]["result_content"] == "hello world"
++        assert result["created_at"] == "2024-01-01T00:00:00Z"
++
++    def test_execute_unknown_tool(self, tool_instance, mock_agent):
++        """未知工具应抛出 ToolExistError"""
++        unknown_call = {
++            "id": "b1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d5",
++            "type": "function",
++            "function": {
++                "registry_id": "unknown_id",
++                "arguments": {}
++            },
++            "created_at": "2024-01-01T00:00:00Z"
++        }
++
++        from rootengine_core.tool.tool import ToolExistError
++        with pytest.raises(ToolExistError) as exc_info:
++            tool_instance.execute(unknown_call, vali=False)
++
++        assert "unknown_id" in str(exc_info.value)
++
++    def test_execute_unknown_type(self, tool_instance, mock_agent):
++        """未知 type 应抛出 ValueError"""
++        unknown_type_call = {
++            "id": "c1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d6",
++            "type": "unknown_type",
++            "created_at": "2024-01-01T00:00:00Z"
++        }
++
++        with pytest.raises(ValueError) as exc_info:
++            tool_instance.execute(unknown_type_call, vali=False)
++
++        assert "unknown_type" in str(exc_info.value)
++
++
++class TestToolExecuteMany:
++    """Tool.execute_many() 测试"""
++
++    @pytest.fixture
++    def mock_agent(self):
++        return MagicMock(name="agent")
++
++    @pytest.fixture
++    def mock_tool_func(self):
++        def func(**kwargs):
++            return "result"
++        return func
++
++    @pytest.fixture
++    def tool_registry_entry(self, mock_tool_func):
++        return {
++            "reif_version": "1.0",
++            "reif_metadata": {
++                "id": "a1b2c3d4e5f6789012345678abcdef01",
++                "category": "tool_registry",
++                "version": "0.1.0",
++                "created_at": "2024-01-01T00:00:00Z"
++            },
++            "reif_content": {
++                "a1b2c3d4e5f6789012345678abcdef01": {"name": "tool1", "type": "function", "function": {"name": "tool1", "description": "Tool 1", "parameters": {}}},
++                "1234567890abcdef1234567890abcdef": {"name": "tool2", "type": "function", "function": {"name": "tool2", "description": "Tool 2", "parameters": {}}},
++            }
++        }
++
++    @pytest.fixture
++    def tool_instance(self, tool_registry_entry, mock_agent, mock_tool_func):
++        from rootengine_core.tool.tool import Tool
++        return Tool(
++            tool_registry_entry=tool_registry_entry,
++            agent=mock_agent,
++            tool_func_map={"a1b2c3d4e5f6789012345678abcdef01": mock_tool_func, "1234567890abcdef1234567890abcdef": mock_tool_func}
++        )
++
++    def test_execute_many_empty(self, tool_instance):
++        """空列表应返回空列表"""
++        result = tool_instance.execute_many([])
++        assert result == []
++
++    def test_execute_many_single(self, tool_instance):
++        """单个调用"""
++        call = {
++            "id": "d1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d7",
++            "type": "function",
++            "function": {"registry_id": "a1b2c3d4e5f6789012345678abcdef01", "arguments": {}},
++            "created_at": "2024-01-01T00:00:00Z"
++        }
++
++        with patch("rootengine_core.tool.tool.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
++            result = tool_instance.execute_many([call])
++
++        assert len(result) == 1
++        assert result[0]["call_id"] == "d1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d7"
++
++    def test_execute_many_multiple(self, tool_instance):
++        """多个调用"""
++        ids = [
++            "f1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d0",
++            "f1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d1",
++            "f1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d2",
++        ]
++        calls = [
++            {
++                "id": id,
++                "type": "function",
++                "function": {"registry_id": "a1b2c3d4e5f6789012345678abcdef01", "arguments": {}},
++                "created_at": "2024-01-01T00:00:00Z"
++            }
++            for id in ids
++        ]
++
++        with patch("rootengine_core.tool.tool.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
++            result = tool_instance.execute_many(calls)
++
++        assert len(result) == 3
++        assert [r["call_id"] for r in result] == ids
+diff --git a/packages/rootengine-core/rootengine_core/tool/__init__.py b/packages/rootengine-core/rootengine_core/tool/__init__.py
+new file mode 100644
+index 0000000..85f3cb8
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/tool/__init__.py
+@@ -0,0 +1 @@
++from  .tool import Tool
+\ No newline at end of file
+diff --git a/packages/rootengine-core/rootengine_core/tool/adapter.py b/packages/rootengine-core/rootengine_core/tool/adapter.py
+new file mode 100644
+index 0000000..3089cac
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/tool/adapter.py
+@@ -0,0 +1,19 @@
++from ..schema_runtime.reif_schema import get_json
++TOOL_REGISTRY_SCHEMA = get_json("tool.tool_registry")
++TOOL_CALL_SCHEMA = get_json("tool.tool_call")
++TOOL_RESULT_SCHEMA = get_json("tool.tool_result")
++from ..utils.reif_adapter import adapt as reif_adapt
++
++from jsonschema import validate
++
++def tool_registry_entry_adapt(tool_registry):
++
++    tool_registry = reif_adapt(tool_registry)
++
++    if tool_registry["reif_metadata"]["version"] == "0.1.0":
++        adapted_cont = tool_registry
++        validate(instance=tool_registry["reif_content"], schema=TOOL_REGISTRY_SCHEMA)
++
++        return adapted_cont
++    else:
++        raise ValueError(f"错误: 未知的 tool_registry_version: {tool_registry["reif_metadata"]["version"]}")
+\ No newline at end of file
+diff --git a/packages/rootengine-core/rootengine_core/tool/tool.py b/packages/rootengine-core/rootengine_core/tool/tool.py
+new file mode 100644
+index 0000000..9b05968
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/tool/tool.py
+@@ -0,0 +1,141 @@
++
++
++import json
++from jsonschema import validate
++from ..schema_runtime.reif_schema import get_json
++TOOL_REGISTRY_SCHEMA = get_json("tool.tool_registry")
++TOOL_CALL_SCHEMA = get_json("tool.tool_call")
++TOOL_RESULT_SCHEMA = get_json("tool.tool_result")
++TOOL_FUNC_MAP_SCHEMA = get_json("tool.tool_func_map")
++
++from typing import Dict
++from ..utils.time import get_iso_timestamp
++from .adapter import tool_registry_entry_adapt
++
++
++class ToolExistError(Exception):
++    pass
++
++class Tool:
++    def __init__(self,tool_registry_entry:dict, agent, tool_func_map: dict = None, ):
++        """
++        :param entry: tool_registry 的 reif_entry
++        :param tool_func_map: 与 tool_registry 对应的 工具映射字典（tool_registry 的工具在 tool_func_map 必须有 ） 格式参照 ../schema/source/tool/tool_func_map.json,(可已没有)
++        """
++
++        self.entry = tool_registry_entry_adapt(tool_registry_entry)
++        self.tool_registry = self.entry["reif_content"]
++        self.tool_func_map = tool_func_map
++
++        # # 判断 tool_registry 是否有在 tool_func_map 未知的工具
++        # tool_func_map_list = [i for i in self.tool_func_map]
++        # for tool_registry_id in self.tool_registry:
++        #     if tool_registry_id not in tool_func_map_list:
++        #         raise ToolExistError(f"错误： tool_registry 中的 工具'{tool_registry_id} 在 tool_func_map 不存在'")
++
++        self.now_tool_call= None
++        self.agent = agent
++
++
++
++    def execute(self,tool_call:dict, vali:bool=True)  -> Dict:
++        #校验一下格式
++
++
++        self.now_tool_call = tool_call
++        if vali:
++            validate(self.now_tool_call, TOOL_CALL_SCHEMA)
++
++
++        """
++        接受tool_call
++        解析工具的参数
++        寻址，执行工具
++        返回result
++
++        :param tool_call:
++        :return:
++        """
++        tool_result = {}
++
++        # 判断调用方法
++        if self.now_tool_call["type"] == "function":
++
++            def func_call():
++
++                registry_id = self.now_tool_call["function"]["registry_id"]
++
++                # 检查，寻址
++                #判断是否 在tool_registry 里是未知工具
++                if self.tool_registry.get(registry_id) is None:
++                    raise ToolExistError(f"错误： '工具 registry_id': '{registry_id}' 在 tool_registry 不存在")
++                #解析参数
++
++                kwargs = self.now_tool_call["function"]["arguments"]
++
++                # 在tool_func_map 里找 工具的函数
++                tool_func = self.tool_func_map.get(registry_id)
++                if tool_func is None:
++                    raise ToolExistError(f"错误： tool_registry 中的 工具'{registry_id} 在 tool_func_map 不存在'")
++
++
++                # 执行
++                try:
++                    result_cont = str(tool_func(**kwargs, agent=self.agent))
++                    status = "success"
++                except Exception as e:
++                    result_cont = None
++                    status = "error"
++                    error_message = e
++
++                # 返回result
++                tool_func_result = {
++                    "call_id": self.now_tool_call["id"],
++                    "type": "function",
++                    "function": {
++                    "result_content": result_cont,
++                    "status": status
++                    }
++                }
++
++                if status ==  "error":
++                    tool_func_result["error_message"] = error_message
++
++
++
++                return tool_func_result
++
++            tool_result = func_call()
++
++        else:
++            raise ValueError(f"错误： 未知的调用方式 '{self.now_tool_call["type"]}'")
++        # 最后加上时间
++        tool_result["created_at"] = get_iso_timestamp()
++
++        return tool_result
++
++    def execute_many(self,tool_calls:list) -> list[dict]:
++        tool_results = []
++        for tool_call in tool_calls:
++            tool_result = self.execute(tool_call)
++            tool_results.append(tool_result)
++        return tool_results
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
+diff --git a/packages/rootengine-core/rootengine_core/utils/__init__.py b/packages/rootengine-core/rootengine_core/utils/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/packages/rootengine-core/rootengine_core/utils/generate_json_dict.py b/packages/rootengine-core/rootengine_core/utils/generate_json_dict.py
+new file mode 100644
+index 0000000..fa6c655
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/utils/generate_json_dict.py
+@@ -0,0 +1,291 @@
++#!/usr/bin/env python3
++"""
++生成JSON字典模块，便于运行时加载JSON文件
++
++用法:
++    python generate_schema_dict.py <input_dir> [options]
++
++示例:
++    python generate_schema_dict.py ./jsons
++    python generate_schema_dict.py ./jsons --output-py my_jsons.py --output-json jsons.json
++
++ Python代码调用
++
++ from generate_schema_dict import generate_json_dict
++
++ # 基本用法
++ generate_json_dict("path/to/json/files")
++
++ # 完整参数
++ generate_json_dict(
++     input_dir="path/to/json/files",
++     output_py="custom_loader.py",
++     output_json="data.json",
++     ignore_errors=True
++ )
++
++
++"""
++import os
++import json
++import sys
++import argparse
++import pprint
++from pathlib import Path
++from typing import Dict, Any, Optional
++
++
++def load_json_from_file(file_path: Path) -> Dict[str, Any]:
++    """从JSON文件加载数据"""
++    try:
++        with open(file_path, 'r', encoding='utf-8') as f:
++            return json.load(f)
++    except json.JSONDecodeError as e:
++        raise ValueError(f"JSON解析错误: 文件 {file_path}: {e}")
++    except OSError as e:
++        raise OSError(f"文件读取错误: {file_path}: {e}")
++    except Exception as e:
++        raise RuntimeError(f"未知错误加载文件 {file_path}: {e}")
++
++
++def scan_jsons_to_dict(root_dir: Path, ignore_errors: bool = False) -> Dict[str, Any]:
++    """
++    扫描JSON目录，生成扁平化的字典结构
++
++    结构示例:
++    {
++        'reif_entry': {...JSON内容...},
++        'conversation.no_tool_conversation': {...JSON内容...},
++        'tool.tool_call': {...JSON内容...},
++        ...
++    }
++
++    Args:
++        root_dir: 要扫描的根目录
++        ignore_errors: 如果为True，忽略无法加载的文件；如果为False，抛出异常
++
++    Returns:
++        键为点分隔路径、值为JSON内容的字典
++    """
++    json_dict = {}
++
++    # 递归扫描所有JSON文件
++    for json_file in root_dir.rglob('*.json'):
++        if json_file.is_file():
++            # 计算相对于root_dir的路径
++            rel_path = json_file.relative_to(root_dir)
++
++            # 将路径转换为点分隔的键名
++            # 例如: conversation/no_tool_conversation.json -> conversation.no_tool_conversation
++            key_parts = []
++            for part in rel_path.parts:
++                if part.endswith('.json'):
++                    key_parts.append(part[:-5])  # 移除.json扩展名
++                else:
++                    key_parts.append(part)
++
++            key = '.'.join(key_parts)
++
++            # 加载JSON
++            try:
++                json_content = load_json_from_file(json_file)
++                json_dict[key] = json_content
++            except Exception as e:
++                if ignore_errors:
++                    # 可以选择打印警告，但为了保持干净，这里不打印
++                    # 如果需要警告，可以传递一个logger
++                    pass
++                else:
++                    raise e
++
++    return json_dict
++
++
++
++
++def create_json_loader(json_dict: Dict[str, Any], output_file: Path) -> None:
++    """创建JSON加载器模块（无外部依赖）"""
++    module_content = '''"""
++JSON文件加载器
++无需外部依赖
++"""
++
++import json
++
++# JSON字典
++JSON_DICT = '''
++
++    module_content += pprint.pformat(json_dict, indent=2)
++    module_content += '''
++
++def get_json(key: str):
++    """根据键名获取JSON数据
++
++    Args:
++        key: JSON键名，如 'reif_entry', 'conversation.no_tool_conversation'
++
++    Returns:
++        JSON字典或None（如果不存在）
++    """
++    return JSON_DICT.get(key)
++
++
++def get_jsons_by_category(category: str):
++    """根据类别获取JSON数据
++
++    Args:
++        category: 类别名，如 'conversation', 'tool'
++
++    Returns:
++        该类别下的所有JSON字典
++    """
++    result = {}
++    for key, json_data in JSON_DICT.items():
++        if key.startswith(category + '.'):
++            result[key] = json_data
++        elif key == category:
++            result[key] = json_data
++    return result
++
++
++def list_jsons() -> list:
++    """返回所有可用的JSON键名列表"""
++    return list(JSON_DICT.keys())
++'''
++
++    with open(output_file, 'w', encoding='utf-8') as f:
++        f.write(module_content)
++
++
++def generate_json_dict(
++    input_dir: str,
++    output_py: str = "json_loader.py",
++    output_json: str = None,
++    ignore_errors: bool = False
++) -> None:
++    """
++    生成JSON字典的主函数
++
++    Args:
++        input_dir: 包含JSON文件的目录
++        output_py: 输出的Python模块文件路径（默认: json_loader.py）
++        output_json: 输出的JSON文件路径（可选，如果不提供则不生成）
++        ignore_errors: 是否忽略加载错误（默认False，抛出异常）
++
++    Raises:
++        FileNotFoundError: 当输入目录不存在时
++        ValueError: 当没有找到任何JSON文件时
++    """
++    # 扫描JSON目录
++    json_source_dir = Path(input_dir)
++
++    if not json_source_dir.exists():
++        raise FileNotFoundError(f"\n错误: 目录 '{json_source_dir}'\n绝对路径{Path(json_source_dir).resolve()} 不存在\n当前工作目录: {os.getcwd()}")
++
++    # 扫描生成字典
++    json_dict = scan_jsons_to_dict(json_source_dir, ignore_errors)
++
++    if not json_dict:
++        raise ValueError(f"错误: '{json_source_dir}' 下未找到JSON文件")
++
++    # 生成Python模块
++    output_module = Path(output_py)
++    create_json_loader(json_dict, output_module)
++
++    print(f"已生成Python模块: {output_module} (包含 {len(json_dict)} 个JSON文件)")
++
++    # 可选：生成JSON文件便于查看
++    if output_json:
++        output_json_path = Path(output_json)
++        with open(output_json_path, 'w', encoding='utf-8') as f:
++            json.dump(json_dict, f, indent=2, ensure_ascii=False)
++        print(f"已生成JSON文件: {output_json_path}")
++
++
++# 向后兼容的别名
++generate_schema_dict = generate_json_dict
++
++
++# 向后兼容的旧版main函数
++def main(dir: str, out_put_json: bool = False) -> None:
++    """
++    旧版main函数（已弃用），请使用generate_json_dict代替
++
++    Args:
++        dir: 包含JSON文件的目录
++        out_put_json: 是否输出JSON文件（固定输出为schemas.json）
++    """
++    import warnings
++    warnings.warn(
++        "main(dir, out_put_json) 已弃用，请使用 generate_json_dict() 函数",
++        DeprecationWarning,
++        stacklevel=2
++    )
++
++    output_json = "schemas.json" if out_put_json else None
++    generate_schema_dict(
++        input_dir=dir,
++        output_py="schema_loader.py",
++        output_json=output_json,
++        ignore_errors=False
++    )
++
++
++def cli_main():
++    """命令行入口点"""
++    parser = argparse.ArgumentParser(
++        description="扫描目录下的JSON文件并生成JSON字典模块",
++        formatter_class=argparse.RawDescriptionHelpFormatter,
++        epilog="""
++示例:
++  %(prog)s ./jsons
++  %(prog)s ./jsons --output-py my_jsons.py --output-json jsons.json
++  %(prog)s ./jsons --ignore-errors
++        """
++    )
++
++    parser.add_argument(
++        "input_dir",
++        help="包含JSON文件的目录"
++    )
++
++    parser.add_argument(
++        "--output-py",
++        default="json_loader.py",
++        help="输出的Python模块文件路径 (默认: json_loader.py)"
++    )
++
++    parser.add_argument(
++        "--output-json",
++        default=None,
++        help="输出的JSON文件路径 (可选)"
++    )
++
++    parser.add_argument(
++        "--ignore-errors",
++        action="store_true",
++        help="忽略无法加载的JSON文件（默认：遇到错误时抛出异常）"
++    )
++
++    parser.add_argument(
++        "--version",
++        action="version",
++        version="%(prog)s 1.0"
++    )
++
++    args = parser.parse_args()
++
++    try:
++        generate_json_dict(
++            input_dir=args.input_dir,
++            output_py=args.output_py,
++            output_json=args.output_json,
++            ignore_errors=args.ignore_errors
++        )
++    except Exception as e:
++        print(f"错误: {e}", file=sys.stderr)
++        sys.exit(1)
++
++
++if __name__ == "__main__":
++    cli_main()
+\ No newline at end of file
+diff --git a/packages/rootengine-core/rootengine_core/utils/helpers.py b/packages/rootengine-core/rootengine_core/utils/helpers.py
+new file mode 100644
+index 0000000..2f9356c
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/utils/helpers.py
+@@ -0,0 +1,43 @@
++# from ..constants.framework_constant import VERSION
++
++from datetime import datetime, timezone
++import uuid
++import json
++from jsonschema import validate,ValidationError,SchemaError
++import importlib
++import sys
++
++
++def print_system(content):
++    print(f"系统：{content}")
++ps = print_system
++
++# 返回openai的字典格式
++def oa(role, content):
++    return {'role': role, 'content': content}
++def oat(role, content,tool_calls):
++    return {'role': role, 'content': content,'tool_calls': tool_calls}
++
++
++
++
++#返回 UTC 的 ISO 格式的时间
++
++def get_iso_timestamp(microseconds=True):
++    """自定义是否包含微秒"""
++    if microseconds:
++        return datetime.now(timezone.utc).isoformat(timespec='microseconds').replace('+00:00', 'Z')
++    else:
++        return datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
++
++
++
++
++
++
++
++
++
++
++
++
+diff --git a/packages/rootengine-core/rootengine_core/utils/path.py b/packages/rootengine-core/rootengine_core/utils/path.py
+new file mode 100644
+index 0000000..3cb712d
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/utils/path.py
+@@ -0,0 +1,20 @@
++import sys
++from pathlib import Path
++
++
++class sys_path_change:
++    """
++    负责临时跳转到另一个路径去运行程序
++    """
++
++    def __init__(self,enter_path):
++        self._original_path = sys.path.copy()
++        self.enter_path = str(Path(enter_path).resolve())
++
++    def __enter__(self):
++        sys.path.insert(0,self.enter_path)
++        return self
++
++    def __exit__(self,exc_type,exc_value,traceback):
++        sys.path[:] = self._original_path
++        return False
+\ No newline at end of file
+diff --git a/packages/rootengine-core/rootengine_core/utils/registrar.py b/packages/rootengine-core/rootengine_core/utils/registrar.py
+new file mode 100644
+index 0000000..2806574
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/utils/registrar.py
+@@ -0,0 +1,55 @@
++
++import sys
++import importlib
++import pkgutil
++from .path import sys_path_change
++
++
++
++class Registrar:
++    def __init__(self):
++        self.now_directory = None
++        self._sys_path_change = None
++        self._registry= {}
++
++    def register(self,directory,clear:bool=False) ->dict:
++        '''
++
++        扫描
++        调用函数（discover_package）
++        把key和value储存与_registry中
++        返回_registry
++        :param path 被扫描目录路径
++        :param clear 若为Ture，清除self.directory后进行扫描
++        :return:self
++        '''
++        self.now_directory = directory
++        self._sys_path_change = sys_path_change(self.now_directory)
++        if clear:
++            self._registry.clear()
++
++        #跳转到被扫描目录
++        with self._sys_path_change:
++            for finder, name, ispkg in pkgutil.iter_modules([self.now_directory]):
++                #扫描
++
++                package = importlib.import_module(name)
++
++                #判断该包是否有为提供discover_package函数
++                if not hasattr(package,"discover_plugin"):
++                    continue
++
++                #调用函数（discover_package）
++                package_info = package.discover_plugin()
++
++                #把key和value储存于_registry中
++                key = package_info["key"]
++                value = package_info["value"]
++                self._registry[key] = value
++
++        return self
++
++    def clear(self):
++        self._registry.clear()
++        return self
++
+diff --git a/packages/rootengine-core/rootengine_core/utils/reif_adapter.py b/packages/rootengine-core/rootengine_core/utils/reif_adapter.py
+new file mode 100644
+index 0000000..20330f5
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/utils/reif_adapter.py
+@@ -0,0 +1,9 @@
++from .reif_func import reif_validate
++def adapt(entry):
++
++    if entry["reif_version"] == "1.0":
++        adapted_cont = entry
++        reif_validate(adapted_cont)
++        return adapted_cont
++    else:
++        raise ValueError(f"错误: 未知的 reif_version: {entry['reif_version']}")
+\ No newline at end of file
+diff --git a/packages/rootengine-core/rootengine_core/utils/reif_func.py b/packages/rootengine-core/rootengine_core/utils/reif_func.py
+new file mode 100644
+index 0000000..b1a0505
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/utils/reif_func.py
+@@ -0,0 +1,149 @@
++from ..constants.framework import VERSION,REIF_CATEGORY
++from .helpers import get_iso_timestamp
++from uuid import uuid4
++import json
++from jsonschema import validate,SchemaError,ValidationError
++
++from ..schema_runtime.reif_schema import get_json
++
++SCHEMA = get_json("reif_entry")
++
++
++from jsonschema import validate, ValidationError, SchemaError
++from typing import Union
++
++def more_ValidationError(error: Union[ValidationError, SchemaError]) -> str:
++    """
++    美化 jsonschema 错误信息，支持 ValidationError 和 SchemaError
++    """
++    if isinstance(error, ValidationError):
++        path = list(error.path) if error.path else ["根节点"]
++        return (
++            f"\n数据不符合 reif_schema 规范：\n"
++            f"错误信息：{error.message}\n"
++            f"错误路径：{path}"
++        )
++    elif isinstance(error, SchemaError):
++        return (
++            f"\nSchema 格式非法：\n"
++            f"错误信息：{error.message}"
++        )
++    else:
++        return f"\n未知验证错误：{str(error)}"
++
++def validate_pro(instance, schema:dict):
++    """
++    增强版 JSON Schema 验证
++    :param instance: 待验证数据（dict/str）
++    :param schema: JSON Schema（ dict）
++    :raises ValueError: 数据不符合 Schema
++    :raises SchemaError: Schema 本身非法
++    """
++    try:
++        validate(instance=instance, schema=schema)
++    except ValidationError as e:
++        # 包装为 ValueError，保留原始异常链（关键修复）
++        raise ValueError(more_ValidationError(e)) from e
++    except SchemaError as e:
++        # Schema 错误单独处理，同样保留异常链
++        raise SchemaError(more_ValidationError(e)) from e
++
++
++
++#处理 RootEngine information form （REIF）的函数
++
++def reif_create(reif_params,tojson:bool = False):
++    '''
++
++    :param reif_params:
++    格式：
++    {
++    "reif_version": 选择的reif格式的版本（选填，默认最新版）（str）(例：1.0) ,
++    "category": 条目类别,（选项："agent_card" , "conversation" , "tool_registry" , "tool_execution"）（str),
++    "version":选择的该类别(如tool_registry) 的版本（选填，默认最新版）（str）(例：0.1.0),
++    "description": 条目描述(选填，默认为None)（str）,
++    "id":uuid,32位无连字符，（选填，自动生成）（str）
++    "name":此条目名称（选填，默认为id值）（str）,
++    "created_at":创立时间，(选填，默认为目前时间)ISO 8601（str）,
++    "updated_at":最后修改时间(选填，默认为None)，ISO 8601（str）,
++    "extra":其他，拓展元数据(选填，默认为空字典)（dict）,
++    }
++    "reif_content":条目所储存的内容（选填，默认None）"
++    必填：，"category"
++    :param tojson:False -> python字典 | Ture -> json字符串
++    :return:配置好的REIF格式的 python字典 或 json字符串
++    '''
++    if isinstance(reif_params, str):
++        rp = json.loads(reif_params)
++    else:
++        rp = reif_params.copy()
++
++
++    # 查找，解析
++
++
++
++    #必填category：
++    if rp.get("category"):
++        cate = rp.get("category")
++        if cate in REIF_CATEGORY:
++            category = cate
++        else:
++            raise KeyError(f"'category':{cate} 有未知字段：category的可选值为{REIF_CATEGORY}")
++    else:
++        raise KeyError(f"此reif条目 缺少必填参数：category")
++
++
++    id = rp.get("id",uuid4().hex)
++    reif_version = rp.get("reif_version",VERSION["reif_version"])
++    version = rp.get("version",VERSION[category])
++    description = rp.get("description",None)
++    name = rp.get("name",id)
++    created_at = rp.get("created_at",get_iso_timestamp())
++    updated_at = rp.get("updated_at",None)
++    extra = rp.get("extra",{})
++
++
++
++
++    #返回reif_entry条目
++    reif_entry = {
++        "reif_version": reif_version,
++        "reif_metadata": {
++            "id": id,
++            "category": category,
++            "version": version,
++            "description": description,
++            "name": name,
++            "created_at": created_at,
++            "updated_at": updated_at,
++            "extra": extra
++            },
++        "reif_content":None
++        }
++    if tojson:
++        return json.dumps(reif_entry)
++    else:
++        return reif_entry
++
++def reif_validate(reif_params):
++    '''
++
++    :param reif_params:尽量是json字符串,reif格式的条目，字典和json字符串均兼容,
++    :return: 若没问题返回True，若有问题会报错
++    '''
++
++    if isinstance(reif_params, str):
++        rp = json.loads(reif_params)
++    else:
++        rp = reif_params.copy()
++
++    validate(instance=rp, schema=SCHEMA)
++    return True
++
++
++def reif_load(reif_params,reif_content):
++
++    reif_entry = reif_create(reif_params)
++    reif_entry["reif_content"] = reif_content
++    return reif_entry
+\ No newline at end of file
+diff --git a/packages/rootengine-core/rootengine_core/utils/time.py b/packages/rootengine-core/rootengine_core/utils/time.py
+new file mode 100644
+index 0000000..9b524ed
+--- /dev/null
++++ b/packages/rootengine-core/rootengine_core/utils/time.py
+@@ -0,0 +1,9 @@
++#返回 UTC 的 ISO 格式的时间
++from datetime import datetime, timezone
++
++def get_iso_timestamp(microseconds=True):
++    """自定义是否包含微秒"""
++    if microseconds:
++        return datetime.now(timezone.utc).isoformat(timespec='microseconds').replace('+00:00', 'Z')
++    else:
++        return datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')

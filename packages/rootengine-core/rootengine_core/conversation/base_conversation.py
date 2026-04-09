@@ -2,29 +2,29 @@
 from ..constants.conversation import CONVERSATION_ROLE
 from pathlib import Path
 from ..utils.reif_func import reif_create,reif_validate
+from ..utils import create_reif,validate_reif
 from ..utils.time import get_iso_timestamp
 
 
 from jsonschema import validate
 
 
-from ..schema_runtime.reif_schema import get_json
-SCHEMA = get_json("conversation.no_tool_conversation")
+from ..schema.runtime.reif_schema import get_json
+SCHEMA = get_json("conversation.base_conversation")
 
-class NoToolConversation:
+class BaseConversation:
     def __init__(self, conversation_entry: dict = None):
         # 如果未传自动创建新的
-        if conversation_entry is None:
+        self.entry = conversation_entry
+        if self.entry is None:
              self.create()
-        else:
-            self.entry = conversation_entry
 
         self.messages = self.entry["reif_content"]
 
 
-    def create(self)   -> NoToolConversation:
+    def create(self)   -> BaseConversation:
         """创建新会话"""
-        self.entry = reif_create({"category": "conversation"})
+        self.entry = create_reif({"category": "conversation"})
         # 确保 reif_content 存在且为空列表
         self.entry["reif_content"] = []
         # 链接
@@ -38,7 +38,7 @@ class NoToolConversation:
             content: str = None,
             created_at: str = None,
             extra: dict = None,
-            )   -> NoToolConversation :
+            )   -> BaseConversation :
 
         """
         向会话添加一条消息。
@@ -87,20 +87,20 @@ class NoToolConversation:
 
 
 
-    def load_entry(self,entry: dict) -> NoToolConversation :
+    def load_entry(self,entry: dict) -> BaseConversation :
         """加载整个 conversation 条目"""
         self.entry = entry
         self.messages = self.entry["reif_content"]
         return self
-    def load_messages(self,messages: list) -> NoToolConversation :
+    def load_messages(self,messages: list) -> BaseConversation :
         self.messages = messages
         self.entry["reif_content"] = self.messages
         return self
 
     def validate_schema(self) -> bool:
-        if self.reif_entry is None:
+        if self.entry is None:
             raise RuntimeError("无会话可校验")
-        reif_validate(self.entry)
+        validate_reif(self.entry)
         validate(instance=self.messages, schema = SCHEMA)
         return True
 

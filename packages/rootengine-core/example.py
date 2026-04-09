@@ -1,12 +1,12 @@
-from rootengine_core import NoToolConversation, OpenAIAdapter, Tool
-from rootengine_core.utils.reif_func import reif_create
+from rootengine_core import BaseConversation, OpenAIAdapter, Tool
+from rootengine_core.utils import create_reif
 
 # 工具定义
 def example_tool(param_1, agent=None):
     return "success" if param_1 == "example" else "fail"
 
 # tool_registry（reif_entry 格式）
-tool_registry_entry = reif_create({
+tool_registry_entry = create_reif({
     "category": "tool_registry",
     "name": "我的工具集"
 })
@@ -36,7 +36,7 @@ tool_func_map = {
 agent = None  # 将来注入智能体
 tool = Tool(tool_registry_entry, agent, tool_func_map)
 
-conv = NoToolConversation()
+conv = BaseConversation()
 conv.add("system", "你是一个有帮助的助手")
 conv.add("user", "请调用 example_tool，参数为 'example'")
 

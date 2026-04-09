@@ -4,7 +4,7 @@ from uuid import uuid4
 import json
 from jsonschema import validate,SchemaError,ValidationError
 
-from ..schema_runtime.reif_schema import get_json
+from ..schema.runtime.reif_schema import get_json
 
 SCHEMA = get_json("reif_entry")
 
@@ -147,3 +147,7 @@ def reif_load(reif_params,reif_content):
     reif_entry = reif_create(reif_params)
     reif_entry["reif_content"] = reif_content
     return reif_entry
+
+create_reif = reif_create
+load_reif = reif_load
+validate_reif = reif_validate

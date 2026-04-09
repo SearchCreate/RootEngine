@@ -1,0 +1,9 @@
+{
+  "version": "0.5.3",
+  "patch_file": "v0.5.3.patch",
+  "commits_file": "commits.json",
+  "tag_name": [],
+  "commit_hash": "07c1a3d4",
+  "commit_message": "小改rootengine_core，创建rootengine",
+  "created_at": "2026-04-12 17:40:08"
+}

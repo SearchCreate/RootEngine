@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "simple_conversation",
+  "description": "基础对话消息列表 schema  约束说明：\n  - role = assistant 且有工具调用时：content 为 null，tool_refer 存在\n  - role = assistant 无工具调用时：content 有值，tool_refer 不存在\n  - role = tool 时：content 为 null，tool_refer 存在\",",
+
+
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "role": {
+        "type": "string",
+        "enum": ["system", "user", "assistant", "tool"]
+      },
+      "content": {
+        "type": ["string", "null"],
+        "description": "消息内容。assistant 有工具调用时为 null，tool 时为 null"
+      },
+      "tool_refer": {
+        "type": "array",
+        "description": "工具调用信息。role = assistant 或 role = tool 时存在",
+        "items": {
+          "type": "object",
+          "properties": {
+            "tool_record_id": {
+              "type": "string",
+              "description": "工具操作 ID"
+            },
+            "tool_record_path": {
+              "type": "string",
+              "description": "工具操作记录的路径"
+            },
+            "type": {
+              "type": "string",
+              "enum": ["call", "result"],
+              "description": "call=LLM 请求工具，result=工具返回结果"
+            }
+          },
+          "required": ["tool_record_id", "tool_record_path", "type"]
+        }
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "extra": {
+        "type": ["object", "null"]
+      }
+    },
+    "required": ["role", "created_at"]
+  }
+}

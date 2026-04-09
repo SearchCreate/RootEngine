@@ -2,7 +2,7 @@
 
 import json
 from jsonschema import validate
-from ..schema_runtime.reif_schema import get_json
+from ..schema.runtime.reif_schema import get_json
 TOOL_REGISTRY_SCHEMA = get_json("tool.tool_registry")
 TOOL_CALL_SCHEMA = get_json("tool.tool_call")
 TOOL_RESULT_SCHEMA = get_json("tool.tool_result")

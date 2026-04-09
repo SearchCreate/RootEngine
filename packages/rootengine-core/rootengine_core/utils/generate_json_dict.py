@@ -55,7 +55,7 @@ def scan_jsons_to_dict(root_dir: Path, ignore_errors: bool = False) -> Dict[str,
     结构示例:
     {
         'reif_entry': {...JSON内容...},
-        'conversation.no_tool_conversation': {...JSON内容...},
+        'conversation.base_conversation': {...JSON内容...},
         'tool.tool_call': {...JSON内容...},
         ...
     }
@@ -76,7 +76,7 @@ def scan_jsons_to_dict(root_dir: Path, ignore_errors: bool = False) -> Dict[str,
             rel_path = json_file.relative_to(root_dir)
 
             # 将路径转换为点分隔的键名
-            # 例如: conversation/no_tool_conversation.json -> conversation.no_tool_conversation
+            # 例如: conversation/base_conversation.json -> conversation.base_conversation
             key_parts = []
             for part in rel_path.parts:
                 if part.endswith('.json'):
@@ -122,7 +122,7 @@ def get_json(key: str):
     """根据键名获取JSON数据
 
     Args:
-        key: JSON键名，如 'reif_entry', 'conversation.no_tool_conversation'
+        key: JSON键名，如 'reif_entry', 'conversation.base_conversation'
 
     Returns:
         JSON字典或None（如果不存在）

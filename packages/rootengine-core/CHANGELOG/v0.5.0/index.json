@@ -1,0 +1,9 @@
+{
+  "version": "0.5.0",
+  "patch_file": "v0.5.0.patch",
+  "commits_file": "commits.json",
+  "tag_name": [],
+  "commit_hash": "844ba526",
+  "commit_message": "已完成 rootengine_core 并上传  pypi；按 pypi 的格式重新整理了项目根目录",
+  "created_at": "2026-04-12 17:23:14"
+}

@@ -1,19 +1,35 @@
 # 注意事项
 - self.entry["reif_content"] 与 self.messages 要值向同一内存地址
 - add , delete 都未涉及 self.entry ， self.message 的链接问题
-# NoToolConversation
+- v0.5.1 将no_tool_conversation 改成了 base_conversation
+# BaseConversation
 
 ## r__init__
 ```python
-    def __init__(self, reif_entry: dict = None):
+    def __init__(self, conversation_entry: dict = None):
         # 如果未传自动创建新的
-        if reif_entry is None:
-            self.create()
+        if conversation_entry is None:
+             self.create()
+        else:
+            self.entry = conversation_entry
 
-        self.messages = self.reif_entry["reif_content"]
+        self.messages = self.entry["reif_content"]
 ```
 传入 entry ( conversation 条目)，为传则创建新的，  
 初始化 self.messages , self.entry["reif_content"] 与 self.messages 要值向同一内存地址
+
+## create
+```python
+    def create(self)   -> BaseConversation:
+        """创建新会话"""
+        self.entry = reif_create({"category": "conversation"})
+        # 确保 reif_content 存在且为空列表
+        self.entry["reif_content"] = []
+        # 链接
+        self.messages = self.entry["reif_content"]
+
+        return self
+```
 
 ## add
 ```python
@@ -23,7 +39,7 @@
             content: str = None,
             created_at: str = None,
             extra: dict = None,
-            )   -> NoToolConversation :
+            )   -> BaseConversation :
 
         """
         向会话添加一条消息。
@@ -56,7 +72,7 @@
 
         self.messages.append(item)
         return self
-    
+
 ```
 
 ## delete

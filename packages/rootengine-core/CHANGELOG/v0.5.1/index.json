@@ -1,0 +1,9 @@
+{
+  "version": "0.5.1",
+  "patch_file": "v0.5.1.patch",
+  "commits_file": "commits.json",
+  "tag_name": [],
+  "commit_hash": "41911d06",
+  "commit_message": "更新了 rootengine_core v0.5.1 主要把 no_too_conversation 改成了 base_conversation",
+  "created_at": "2026-04-12 17:23:51"
+}

@@ -6,7 +6,7 @@ JSON文件加载器
 import json
 
 # JSON字典
-JSON_DICT = { 'conversation.no_tool_conversation': { '$schema': 'http://json-schema.org/draft-07/schema#',
+JSON_DICT = { 'conversation.base_conversation': { '$schema': 'http://json-schema.org/draft-07/schema#',
                                          'description': '基础对话消息列表（无工具字段）',
                                          'items': { 'properties': { 'content': { 'type': [ 'string',
                                                                                            'null']},
@@ -307,7 +307,7 @@ def get_json(key: str):
     """根据键名获取JSON数据
 
     Args:
-        key: JSON键名，如 'reif_entry', 'conversation.no_tool_conversation'
+        key: JSON键名，如 'reif_entry', 'conversation.base_conversation'
 
     Returns:
         JSON字典或None（如果不存在）
