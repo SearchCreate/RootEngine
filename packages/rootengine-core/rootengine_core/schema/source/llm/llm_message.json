@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "llm_message",
+  "description": "LLM 对话消息单条格式，与 OpenAI 格式解耦",
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "enum": ["system", "user", "assistant", "tool"],
+      "description": "消息角色"
+    },
+    "content": {
+      "description": "消息内容",
+      "oneOf": [
+        {
+          "type": "null",
+          "description": "assistant 无文字内容时（如纯工具调用）"
+        },
+        {
+          "type": "string",
+          "description": "system/user/assistant 普通文字内容"
+        },
+        {
+          "type": "object",
+          "description": "tool 角色时为 tool_result 对象"
+        }
+      ]
+    },
+    "tool_calls": {
+      "type": "array",
+      "description": "LLM 工具调用列表，仅 assistant 消息可能包含",
+      "items": {
+        "$ref": "../tool/tool_call.json"
+      }
+    },
+    "tool_call_id": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{32}$",
+      "description": "tool 角色必填，关联到 assistant 消息 tool_calls 中对应 call 的 id"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "创建时间 ISO 8601"
+    },
+    "extra": {
+      "type": ["object", "null"],
+      "additionalProperties": true,
+      "description": "扩展数据"
+    }
+  },
+  "required": ["role", "created_at"],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "role": {
+            "const": "tool"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "content": {
+            "type": "object",
+            "description": "tool 角色的 content 必须为 tool_result 对象"
+          },
+          "tool_call_id": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{32}$"
+          }
+        },
+        "required": ["tool_call_id"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "role": {
+            "const": "assistant"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "tool_calls": {
+            "type": "array",
+            "items": {
+              "$ref": "tool/tool_call.json"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

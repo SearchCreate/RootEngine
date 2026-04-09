@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "reif_content_base_conversation",
+  "description": "基础对话消息列表（无工具字段）",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "role": {
+        "type": "string",
+        "enum": [
+          "system",
+          "user",
+          "assistant"
+        ]
+      },
+      "content": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "extra": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "required": [
+      "role",
+      "created_at"
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "tool_func_map",
+  "description": "工具函数映射字典",
+  "type": "object",
+  "patternProperties": {
+    "^[0-9a-fA-F]{32}$": {
+      "function": {
+        "description": "python 函数对象"
+      }
+    }
+  },
+  "required": ["^[0-9a-fA-F]{32}$"],
+  "additionalProperties": false
+}

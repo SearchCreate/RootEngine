@@ -16,6 +16,13 @@ build/
 dist/
 *.egg-info/
 
+# 开发目录
+rootengine_develop/
+ruins/
+
+# Claude Code
+.claude/
+
 # IDE 配置
 .idea/
 .vscode/

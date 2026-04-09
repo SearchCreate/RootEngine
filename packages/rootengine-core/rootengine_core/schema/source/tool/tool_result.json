@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "tool_result",
+  "type": "object",
+  "properties": {
+    "call_id": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{32}$",
+      "description": "工具调用的id"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["function"],
+      "description": "工具调用方式"
+    },
+    "function": {
+      "type": "object",
+      "description": "函数调用方式",
+      "properties": {
+        "result_content": {
+          "type": "string",
+          "description": "工具结果的内容"
+        },
+        "status": {
+          "type": "string",
+          "description": "工具执行情况",
+          "enum": ["success","error","timeout","cancelled","pending","running"]
+        },
+        "error_message": {
+          "type": "string",
+          "description": "错误信息，仅 status：error 时存在"
+        }
+      },
+      "required": ["result_content","status"],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "error"
+              }
+            }
+          },
+          "then": {
+            "required": ["error_message"]
+          }
+        }
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "description": "创建时间",
+      "format": "date-time"
+    },
+    "extra": {
+      "type": "object",
+      "description": "扩展"
+    }
+  },
+  "required": ["call_id","created_at"],
+  "allOf": [
+    {
+      "if": {"properties":{"type": {"const": "function"}}},
+      "then": {"required": ["function"]}
+    }
+  ]
+}
+

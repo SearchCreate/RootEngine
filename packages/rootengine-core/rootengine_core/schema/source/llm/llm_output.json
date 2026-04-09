@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "llm_output",
+  "description": "LLM 单次调用的返回格式",
+  "type": "object",
+  "properties": {
+    "content": {
+      "description": "LLM 回复的文字内容，无文字时为 null（纯工具调用场景）",
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string" }
+      ]
+    },
+    "tool_calls": {
+      "type": "array",
+      "description": "LLM 发起的工具调用列表，无工具调用时为 null",
+      "items": {
+        "$ref": "../tool/tool_call.json"
+      }
+    },
+    "usage": {
+      "type": "object",
+      "description": "Token 用量统计",
+      "properties": {
+        "prompt_tokens": {
+          "type": "integer",
+          "description": "输入 prompt 消耗的 token 数"
+        },
+        "completion_tokens": {
+          "type": "integer",
+          "description": "生成回复消耗的 token 数"
+        },
+        "total_tokens": {
+          "type": "integer",
+          "description": "总 token 数"
+        }
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "LLM 返回时间，ISO 8601 格式"
+    },
+    "extra": {
+      "type": ["object", "null"],
+      "additionalProperties": true,
+      "description": "扩展数据"
+    }
+  }
+}

@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rootengine-core"
+version = "0.5.0"
+description = "RootEngine AI Agent Framework Core"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "zimvir", email = "zimvir@qq.com"}
+]
+keywords = ["ai", "agent", "rootengine"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "jsonschema>=4.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/zimvir/RootEngine"
+Repository = "https://github.com/zimvir/RootEngine"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["rootengine_core*"]
+exclude = ["rootengine_core.test*"]
+
+[tool.setuptools.package-data]
+rootengine_core = [
+    "schema/source/**/*.json",
+    "schema_runtime/*.py",
+]
