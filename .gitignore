@@ -1,6 +1,6 @@
 # 虚拟环境
 .venv/
-.venv_2/
+.venv_*/
 venv/
 env/
 
@@ -14,12 +14,12 @@ __pycache__/
 # 构建产物
 build/
 dist/
-*.egg/
 *.egg-info/
 
 # 开发目录
 rootengine_develop/
 ruins/
+project.md
 
 # Claude Code
 .claude/
@@ -36,21 +36,15 @@ ruins/
 
 # 数据库文件
 *.db
-*.db-journal
-*.db-shm
-*.db-wal
 *.sqlite3
 
 # 日志
 *.log
 
-# 测试覆盖率
-.coverage
-htmlcov/
-
-# Linter 缓存
-.ruff_cache/
-
 # 操作系统生成的文件
 .DS_Store
 Thumbs.db
+
+# 工具
+generate_changelog.py
+
