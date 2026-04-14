@@ -52,7 +52,7 @@ def validate_pro(instance, schema:dict):
 
 #处理 RootEngine information form （REIF）的函数
 
-def reif_create(reif_params,tojson:bool = False):
+def create_reif(reif_params,tojson:bool = False):
     '''
 
     :param reif_params:
@@ -126,7 +126,7 @@ def reif_create(reif_params,tojson:bool = False):
     else:
         return reif_entry
 
-def reif_validate(reif_params):
+def validate_reif(reif_params):
     '''
 
     :param reif_params:尽量是json字符串,reif格式的条目，字典和json字符串均兼容,
@@ -142,12 +142,65 @@ def reif_validate(reif_params):
     return True
 
 
-def reif_load(reif_params,reif_content):
-
+def load_reif(reif_params,reif_content):
+    """加载reif entry ,用 reif_content 替换 reif_params 生成的reif entry 的 ’reif_content‘字段"""
     reif_entry = reif_create(reif_params)
     reif_entry["reif_content"] = reif_content
     return reif_entry
 
-create_reif = reif_create
-load_reif = reif_load
-validate_reif = reif_validate
+reif_create = create_reif
+reif_load = load_reif
+reif_validate = validate_reif
+
+
+
+
+
+# 建立 REIFFunction 类 ，方便以后扩展
+class REIFFunction:
+    def __init__(self,reif_schema=None):
+        self.reif_schema = reif_schema if reif_schema else SCHEMA
+    def create(self,reif_params):
+        '''
+
+        :param reif_params:
+        格式：
+        {
+        "reif_version": 选择的reif格式的版本（选填，默认最新版）（str）(例：1.0) ,
+        "category": 条目类别,（选项："agent_card" , "conversation" , "tool_registry" , "tool_execution"）（str),
+        "version":选择的该类别(如tool_registry) 的版本（选填，默认最新版）（str）(例：0.1.0),
+        "description": 条目描述(选填，默认为None)（str）,
+        "id":uuid,32位无连字符，（选填，自动生成）（str）
+        "name":此条目名称（选填，默认为id值）（str）,
+        "created_at":创立时间，(选填，默认为目前时间)ISO 8601（str）,
+        "updated_at":最后修改时间(选填，默认为None)，ISO 8601（str）,
+        "extra":其他，拓展元数据(选填，默认为空字典)（dict）,
+        }
+        "reif_content":条目所储存的内容（选填，默认None）"
+        必填：，"category"
+        :param tojson:False -> python字典 | Ture -> json字符串
+        :return:配置好的REIF格式的 python字典 或 json字符串
+        '''
+        return create_reif(reif_params)
+
+    def load(self, reif_params):
+        """加载reif entry ,用 reif_content 替换 reif_params 生成的reif entry 的 ’reif_content‘字段"""
+        return load_reif(self, reif_params)
+
+    def validate(self, reif_params):
+        '''
+        :param reif_params:尽量是json字符串,reif格式的条目，字典和json字符串均兼容,
+        :return: 若没问题返回True，若有问题会报错
+        '''
+        def vali(_reif_params,_reif_schema):
+            """内置检验函数"""
+
+            if isinstance(reif_params, str):
+                rp = json.loads(reif_params)
+            else:
+                rp = reif_params.copy()
+
+            validate(instance=rp, schema=_reif_schema)
+            return True
+        return vali(reif_params,self.reif_schema)
+
