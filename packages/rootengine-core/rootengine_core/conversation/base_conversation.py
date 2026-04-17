@@ -4,7 +4,7 @@ from pathlib import Path
 from ..utils.reif_func import reif_create,reif_validate
 from ..utils import create_reif,validate_reif
 from ..utils.time import get_iso_timestamp
-
+from abc import abstractmethod
 
 from jsonschema import validate
 
@@ -15,22 +15,18 @@ SCHEMA = get_json("conversation.base_conversation")
 class BaseConversation:
     def __init__(self, conversation_entry: dict = None):
         # 如果未传自动创建新的
-        self.entry = conversation_entry
-        if self.entry is None:
-             self.create()
-
+        if conversation_entry is None:
+             _entry = self.create()
+        self.entry = _entry
         self.messages = self.entry["reif_content"]
 
 
     def create(self)   -> BaseConversation:
-        """创建新会话"""
-        self.entry = create_reif({"category": "conversation"})
+        """创建新的会话条目，并返回它"""
+        _entry = create_reif({"category": "conversation"})
         # 确保 reif_content 存在且为空列表
-        self.entry["reif_content"] = []
-        # 链接
-        self.messages = self.entry["reif_content"]
-
-        return self
+        _entry["reif_content"] = []
+        return _entry
 
     def add(
             self ,

@@ -1,6 +1,6 @@
 from rootengine_core import BaseConversation
 from rootengine_core.utils import get_iso_timestamp,validate_reif
-from ..utils import RootEngineBufferSQL
+from ..db import RootEngineBufferSQL
 from ..constants.conversation import CONVERSATION_ROLE
 from jsonschema import validate
 from ..schema.runtime.frame_schema import get_json

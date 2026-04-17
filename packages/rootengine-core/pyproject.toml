@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rootengine-core"
-version = "0.5.5"
+version = "0.5.6"
 description = "RootEngine AI Agent Framework Core"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -25,6 +25,7 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/zimvir/RootEngine"
 Repository = "https://github.com/zimvir/RootEngine"
+
 
 [tool.setuptools.packages.find]
 where = ["."]
