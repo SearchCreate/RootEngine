@@ -76,7 +76,7 @@ def scan_jsons_to_dict(root_dir: Path, ignore_errors: bool = False) -> Dict[str,
             rel_path = json_file.relative_to(root_dir)
 
             # 将路径转换为点分隔的键名
-            # 例如: conversation/base_conversation.json -> conversation.base_conversation
+            # 例如: conversation/no_tool_conversation.json -> conversation.no_tool_conversation
             key_parts = []
             for part in rel_path.parts:
                 if part.endswith('.json'):

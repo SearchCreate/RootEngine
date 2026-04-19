@@ -6,7 +6,7 @@ JSON文件加载器
 import json
 
 # JSON字典
-JSON_DICT = { 'conversation.base_conversation': { '$schema': 'http://json-schema.org/draft-07/schema#',
+JSON_DICT = { 'conversation.no_tool_conversation': { '$schema': 'http://json-schema.org/draft-07/schema#',
                                          'description': '基础对话消息列表（无工具字段）',
                                          'items': { 'properties': { 'content': { 'type': [ 'string',
                                                                                            'null']},
@@ -22,7 +22,7 @@ JSON_DICT = { 'conversation.base_conversation': { '$schema': 'http://json-schema
                                                     'required': [ 'role',
                                                                   'created_at'],
                                                     'type': 'object'},
-                                         'title': 'reif_content_base_conversation',
+                                         'title': 'reif_content_no_tool_conversation',
                                          'type': 'array'},
   'llm.llm_message': { '$schema': 'http://json-schema.org/draft-07/schema#',
                        'allOf': [ { 'if': { 'properties': { 'role': { 'const': 'tool'}}},
