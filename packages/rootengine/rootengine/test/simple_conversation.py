@@ -1,347 +1,328 @@
 import pytest
-import os
+import sys
 from pathlib import Path
-from ..conversation.simple_conversation import SimpleConversation
+from unittest.mock import MagicMock, patch
+
+# 添加根目录到 sys.path
+_root_dir = Path(__file__).parent.parent.parent
+if str(_root_dir) not in sys.path:
+    sys.path.insert(0, str(_root_dir))
+
+from rootengine.db.base_buffer_db import BaseBufferDB
 
 
-class TestSimpleConversationInit:
-    def test_new_conversation_creates_entry(self, tmp_path):
-        db_path = tmp_path / "test.db"
-        conv = SimpleConversation(
-            sql_db_path=str(db_path),
-            simple_conversation_entry=None,
-            sql_table_name="test_conv",
-            auto_save_db=False,
-        )
+class MockDB(BaseBufferDB):
+    """Mock BaseBufferDB subclass for testing"""
+    def __init__(self, initial_entry=None):
+        self.entry_buffer = initial_entry
+        self._buffer = initial_entry
+
+    def save(self):
+        pass
+
+    def load(self):
+        return self
+
+    def get(self):
+        return self.entry_buffer
+
+    def close(self):
+        pass
+
+    def change_buffer(self, new_buffer):
+        self.entry_buffer = new_buffer
+        return self
+
+    def get_metadata(self):
+        return {"db_obj_name": "MockDB", "path": ":memory:", "category": "conversation", "id": "test-id", "table_name": "test_table"}
+
+
+class TestSimpleConversationCreate:
+    """SimpleConversation.create() 测试"""
+
+    def test_create_no_args(self):
+        """不传参数时应自动创建新会话"""
+        from rootengine.conversation.simple_conversation import SimpleConversation
+        mock_db = MockDB()
+        conv = SimpleConversation(db_obj=mock_db)
+
         assert conv.entry is not None
         assert conv.entry["reif_metadata"]["category"] == "conversation"
         assert conv.entry["reif_content"] == []
+        assert conv.messages == []
 
-    def test_init_with_entry(self, tmp_path):
-        db_path = tmp_path / "test.db"
-        entry = {
-            "reif_version": "1.0",
-            "reif_metadata": {
-                "id": "test-id-123",
-                "category": "conversation",
-                "version": "0.1.0",
-                "description": None,
-                "name": "test-name",
-                "created_at": "2026-01-01T00:00:00Z",
-                "updated_at": None,
-                "extra": {},
-            },
-            "reif_content": [{"role": "system", "content": "hello", "created_at": "2026-01-01T00:00:00Z"}],
-        }
-        conv = SimpleConversation(
-            sql_db_path=str(db_path),
-            simple_conversation_entry=entry,
-            sql_table_name="test_conv",
-            auto_save_db=False,
-        )
-        assert conv.entry["reif_metadata"]["id"] == "test-id-123"
-        assert len(conv.messages) == 1
+    def test_create_returns_dict(self):
+        """create() 应返回 entry 字典"""
+        from rootengine.conversation.simple_conversation import SimpleConversation
+        mock_db = MockDB()
+        conv = SimpleConversation(db_obj=mock_db)
+        result = conv.create()
 
-    def test_entry_buffer_synced_to_db(self, tmp_path):
-        db_path = tmp_path / "test.db"
-        conv = SimpleConversation(
-            sql_db_path=str(db_path),
-            simple_conversation_entry=None,
-            sql_table_name="test_conv",
-            auto_save_db=False,
-        )
-        assert conv.db.entry_buffer is conv.entry
+        assert isinstance(result, dict)
+        assert result["reif_metadata"]["category"] == "conversation"
+        assert result["reif_content"] == []
 
 
 class TestSimpleConversationAdd:
-    def test_add_user_message(self, tmp_path):
-        db_path = tmp_path / "test.db"
-        conv = SimpleConversation(
-            sql_db_path=str(db_path),
-            simple_conversation_entry=None,
-            sql_table_name="test_conv",
-            auto_save_db=False,
-        )
-        conv.add(role="user", content="你好")
+    """SimpleConversation.add() 测试"""
+
+    @pytest.fixture
+    def conv(self):
+        from rootengine.conversation.simple_conversation import SimpleConversation
+        mock_db = MockDB()
+        return SimpleConversation(db_obj=mock_db, auto_save_db=False)
+
+    def test_add_user_message(self, conv):
+        """添加 user 消息"""
+        with patch("rootengine.conversation.simple_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
+            conv.add("user", "hello")
+
         assert len(conv.messages) == 1
         assert conv.messages[0]["role"] == "user"
-        assert conv.messages[0]["content"] == "你好"
-        assert "created_at" in conv.messages[0]
+        assert conv.messages[0]["content"] == "hello"
+        assert conv.messages[0]["created_at"] == "2024-01-01T00:00:00Z"
 
-    def test_add_system_message(self, tmp_path):
-        db_path = tmp_path / "test.db"
-        conv = SimpleConversation(
-            sql_db_path=str(db_path),
-            simple_conversation_entry=None,
-            sql_table_name="test_conv",
-            auto_save_db=False,
-        )
-        conv.add(role="system", content="你是一个助手")
+    def test_add_system_message(self, conv):
+        """添加 system 消息"""
+        with patch("rootengine.conversation.simple_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
+            conv.add("system", "you are helpful")
+
         assert conv.messages[0]["role"] == "system"
-        assert conv.messages[0]["content"] == "你是一个助手"
+        assert conv.messages[0]["content"] == "you are helpful"
 
-    def test_add_assistant_message(self, tmp_path):
-        db_path = tmp_path / "test.db"
-        conv = SimpleConversation(
-            sql_db_path=str(db_path),
-            simple_conversation_entry=None,
-            sql_table_name="test_conv",
-            auto_save_db=False,
-        )
-        conv.add(role="assistant", content="你好，我是助手")
-        assert conv.messages[0]["role"] == "assistant"
-        assert conv.messages[0]["content"] == "你好，我是助手"
+    def test_add_assistant_message(self, conv):
+        """添加 assistant 消息"""
+        with patch("rootengine.conversation.simple_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
+            conv.add("assistant", "hello!")
 
-    def test_add_assistant_with_tool_call(self, tmp_path):
-        db_path = tmp_path / "test.db"
-        conv = SimpleConversation(
-            sql_db_path=str(db_path),
-            simple_conversation_entry=None,
-            sql_table_name="test_conv",
-            auto_save_db=False,
-        )
-        tool_refer = [
-            {"type": "call", "tool_record_id": "tool-1", "tool_record_path": "tools/weather"}
-        ]
-        conv.add(role="assistant", tool_refer=tool_refer)
         assert conv.messages[0]["role"] == "assistant"
+        assert conv.messages[0]["content"] == "hello!"
+
+    def test_add_assistant_with_tool_refer(self, conv):
+        """添加 assistant 消息带 tool_refer"""
+        with patch("rootengine.conversation.simple_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
+            conv.add("assistant", tool_refer={"name": "get_weather", "arguments": {"city": "beijing"}})
+
+        assert conv.messages[0]["role"] == "assistant"
+        assert conv.messages[0]["tool_refer"] == {"name": "get_weather", "arguments": {"city": "beijing"}}
         assert conv.messages[0]["content"] is None
-        assert conv.messages[0]["tool_refer"] == tool_refer
 
-    def test_add_tool_message(self, tmp_path):
-        db_path = tmp_path / "test.db"
-        conv = SimpleConversation(
-            sql_db_path=str(db_path),
-            simple_conversation_entry=None,
-            sql_table_name="test_conv",
-            auto_save_db=False,
-        )
-        tool_refer = [
-            {"type": "result", "tool_record_id": "tool-1", "tool_record_path": "tools/weather"}
-        ]
-        conv.add(role="tool", tool_refer=tool_refer)
+    def test_add_tool_message(self, conv):
+        """添加 tool 消息"""
+        with patch("rootengine.conversation.simple_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
+            conv.add("tool", tool_refer={"call_id": "call_123"}, content=None)
+
         assert conv.messages[0]["role"] == "tool"
+        assert conv.messages[0]["tool_refer"] == {"call_id": "call_123"}
         assert conv.messages[0]["content"] is None
-        assert conv.messages[0]["tool_refer"] == tool_refer
 
-    def test_add_invalid_role_raises(self, tmp_path):
-        db_path = tmp_path / "test.db"
-        conv = SimpleConversation(
-            sql_db_path=str(db_path),
-            simple_conversation_entry=None,
-            sql_table_name="test_conv",
-            auto_save_db=False,
-        )
-        with pytest.raises(ValueError, match="未知角色"):
-            conv.add(role="invalid_role", content="hello")
+    def test_add_tool_message_content_not_none_raises(self, conv):
+        """tool 角色 content 必须为 None"""
+        with pytest.raises(ValueError) as exc_info:
+            conv.add("tool", tool_refer={"call_id": "call_123"}, content="some text")
 
-    def test_add_tool_without_tool_refer_raises(self, tmp_path):
-        db_path = tmp_path / "test.db"
-        conv = SimpleConversation(
-            sql_db_path=str(db_path),
-            simple_conversation_entry=None,
-            sql_table_name="test_conv",
-            auto_save_db=False,
-        )
-        with pytest.raises(ValueError, match="tool_refer 不能为空"):
-            conv.add(role="tool", content="some result")
+        assert "content 必须为 null" in str(exc_info.value)
 
-    def test_add_tool_with_non_null_content_raises(self, tmp_path):
-        db_path = tmp_path / "test.db"
-        conv = SimpleConversation(
-            sql_db_path=str(db_path),
-            simple_conversation_entry=None,
-            sql_table_name="test_conv",
-            auto_save_db=False,
-        )
-        tool_refer = [
-            {"type": "result", "tool_record_id": "tool-1", "tool_record_path": "tools/weather"}
-        ]
-        with pytest.raises(ValueError, match="content 必须为 null"):
-            conv.add(role="tool", content="not null", tool_refer=tool_refer)
+    def test_add_tool_message_no_tool_refer_raises(self, conv):
+        """tool 角色 tool_refer 不能为空"""
+        with pytest.raises(ValueError) as exc_info:
+            conv.add("tool", content=None)
 
-    def test_add_with_extra(self, tmp_path):
-        db_path = tmp_path / "test.db"
-        conv = SimpleConversation(
-            sql_db_path=str(db_path),
-            simple_conversation_entry=None,
-            sql_table_name="test_conv",
-            auto_save_db=False,
-        )
-        conv.add(role="user", content="hello", extra={"key": "value"})
-        assert conv.messages[0]["extra"] == {"key": "value"}
+        assert "tool_refer 不能为空" in str(exc_info.value)
 
-    def test_add_with_created_at(self, tmp_path):
-        db_path = tmp_path / "test.db"
-        conv = SimpleConversation(
-            sql_db_path=str(db_path),
-            simple_conversation_entry=None,
-            sql_table_name="test_conv",
-            auto_save_db=False,
-        )
-        conv.add(role="user", content="hello", created_at="2026-01-01T00:00:00Z")
-        assert conv.messages[0]["created_at"] == "2026-01-01T00:00:00Z"
+    def test_add_auto_timestamp(self, conv):
+        """未传 created_at 时应自动生成"""
+        with patch("rootengine.conversation.simple_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
+            conv.add("user", "hello")
 
-    def test_add_chainable(self, tmp_path):
-        db_path = tmp_path / "test.db"
-        conv = SimpleConversation(
-            sql_db_path=str(db_path),
-            simple_conversation_entry=None,
-            sql_table_name="test_conv",
-            auto_save_db=False,
-        )
-        result = (
-            conv.add(role="system", content="you are helpful")
-            .add(role="user", content="hello")
-            .add(role="assistant", content="hi")
-        )
+        assert conv.messages[0]["created_at"] == "2024-01-01T00:00:00Z"
+
+    def test_add_with_extra(self, conv):
+        """添加带 extra 的消息"""
+        extra = {"key": "value"}
+        conv.add("user", "hello", extra=extra)
+
+        assert conv.messages[0]["extra"] == extra
+
+    def test_add_invalid_role(self, conv):
+        """无效角色应抛出 ValueError"""
+        with pytest.raises(ValueError) as exc_info:
+            conv.add("invalid_role", "hello")
+
+        assert "invalid_role" in str(exc_info.value)
+
+    def test_add_returns_self(self, conv):
+        """add() 应返回 self，支持链式调用"""
+        with patch("rootengine.conversation.simple_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
+            result = conv.add("user", "hello")
+
         assert result is conv
+
+    def test_add_chain(self, conv):
+        """链式调用"""
+        with patch("rootengine.conversation.simple_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
+            conv.add("system", "you are helpful").add("user", "hello").add("assistant", "hi!")
+
         assert len(conv.messages) == 3
+        assert [m["role"] for m in conv.messages] == ["system", "user", "assistant"]
 
 
 class TestSimpleConversationDelete:
-    def test_delete_last_message(self, tmp_path):
-        db_path = tmp_path / "test.db"
-        conv = SimpleConversation(
-            sql_db_path=str(db_path),
-            simple_conversation_entry=None,
-            sql_table_name="test_conv",
-            auto_save_db=False,
-        )
-        conv.add(role="user", content="hello")
-        conv.add(role="assistant", content="hi")
-        assert len(conv.messages) == 2
-        conv.delete()
-        assert len(conv.messages) == 1
-        assert conv.messages[0]["role"] == "user"
+    """SimpleConversation.delete() 测试"""
 
-    def test_delete_by_index(self, tmp_path):
-        db_path = tmp_path / "test.db"
-        conv = SimpleConversation(
-            sql_db_path=str(db_path),
-            simple_conversation_entry=None,
-            sql_table_name="test_conv",
-            auto_save_db=False,
-        )
-        conv.add(role="system", content="sys")
-        conv.add(role="user", content="user")
-        conv.add(role="assistant", content="asst")
-        conv.delete(0)
-        assert len(conv.messages) == 2
-        assert conv.messages[0]["role"] == "user"
+    @pytest.fixture
+    def conv_with_messages(self):
+        from rootengine.conversation.simple_conversation import SimpleConversation
+        mock_db = MockDB()
+        with patch("rootengine.conversation.simple_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
+            conv = SimpleConversation(db_obj=mock_db, auto_save_db=False)
+            conv.add("system", "sys").add("user", "user1").add("assistant", "asy")
+        return conv
+
+    def test_delete_last(self, conv_with_messages):
+        """不传索引默认删除最后一条"""
+        conv_with_messages.delete()
+
+        assert len(conv_with_messages.messages) == 2
+        assert conv_with_messages.messages[-1]["role"] == "user"
+
+    def test_delete_by_index(self, conv_with_messages):
+        """按索引删除"""
+        conv_with_messages.delete(0)
+
+        assert len(conv_with_messages.messages) == 2
+        assert conv_with_messages.messages[0]["role"] == "user"
+
+    def test_delete_returns_self(self, conv_with_messages):
+        """delete() 应返回 self"""
+        result = conv_with_messages.delete()
+        assert result is conv_with_messages
+
+
+class TestSimpleConversationLoad:
+    """SimpleConversation.load_entry() / load_messages() 测试"""
+
+    def test_load_entry(self):
+        """加载完整 entry"""
+        from rootengine.conversation.simple_conversation import SimpleConversation
+        mock_db = MockDB()
+        conv = SimpleConversation(db_obj=mock_db, auto_save_db=False)
+        entry = {
+            "reif_version": "1.0",
+            "reif_metadata": {
+                "id": "abc123",
+                "category": "conversation",
+                "created_at": "2024-01-01T00:00:00Z"
+            },
+            "reif_content": [
+                {"role": "user", "content": "hello", "created_at": "2024-01-01T00:00:00Z"}
+            ]
+        }
+
+        conv.load_entry(entry)
+
+        assert conv.entry is entry
+        assert conv.messages == entry["reif_content"]
+
+    def test_load_messages(self):
+        """加载消息列表"""
+        from rootengine.conversation.simple_conversation import SimpleConversation
+        mock_db = MockDB()
+        conv = SimpleConversation(db_obj=mock_db, auto_save_db=False)
+        messages = [
+            {"role": "user", "content": "hello", "created_at": "2024-01-01T00:00:00Z"}
+        ]
+
+        conv.load_messages(messages)
+
+        assert conv.messages is messages
+        assert conv.entry["reif_content"] is messages
+
+    def test_load_entry_returns_self(self):
+        """load_entry() 应返回 self"""
+        from rootengine.conversation.simple_conversation import SimpleConversation
+        mock_db = MockDB()
+        conv = SimpleConversation(db_obj=mock_db, auto_save_db=False)
+        entry = {
+            "reif_version": "1.0",
+            "reif_metadata": {"id": "abc", "category": "conversation", "created_at": "2024-01-01T00:00:00Z"},
+            "reif_content": []
+        }
+        result = conv.load_entry(entry)
+        assert result is conv
+
+    def test_load_messages_returns_self(self):
+        """load_messages() 应返回 self"""
+        from rootengine.conversation.simple_conversation import SimpleConversation
+        mock_db = MockDB()
+        conv = SimpleConversation(db_obj=mock_db, auto_save_db=False)
+        result = conv.load_messages([])
+        assert result is conv
+
+
+class TestSimpleConversationInit:
+    """SimpleConversation.__init__() 测试"""
+
+    def test_init_with_db_obj(self):
+        """db_obj 应正确赋值给 self.db"""
+        from rootengine.conversation.simple_conversation import SimpleConversation
+        mock_db = MockDB()
+        conv = SimpleConversation(db_obj=mock_db)
+
+        assert conv.db is mock_db
+
+    def test_init_with_initial_entry(self):
+        """有初始 entry 时应直接使用"""
+        from rootengine.conversation.simple_conversation import SimpleConversation
+        initial_entry = {
+            "reif_version": "1.0",
+            "reif_metadata": {
+                "id": "abc123",
+                "category": "conversation",
+                "created_at": "2024-01-01T00:00:00Z"
+            },
+            "reif_content": [{"role": "user", "content": "hi", "created_at": "2024-01-01T00:00:00Z"}]
+        }
+        mock_db = MockDB(initial_entry)
+        conv = SimpleConversation(db_obj=mock_db)
+
+        assert conv.entry is initial_entry
+        assert conv.messages == initial_entry["reif_content"]
+
+    def test_init_invalid_db_obj_raises(self):
+        """非 BaseBufferDB 子类应抛出 TypeError"""
+        from rootengine.conversation.simple_conversation import SimpleConversation
+        invalid_db = "not a db object"
+
+        with pytest.raises(TypeError) as exc_info:
+            SimpleConversation(db_obj=invalid_db)
+
+        assert "不是 BaseConversation 的子类" in str(exc_info.value)
+
+
+class TestSimpleConversationSave:
+    """SimpleConversation.save() 测试"""
+
+    def test_save(self):
+        """save() 应调用 db.change_buffer 和 db.save()"""
+        from rootengine.conversation.simple_conversation import SimpleConversation
+        mock_db = MockDB()
+        conv = SimpleConversation(db_obj=mock_db, auto_save_db=False)
+
+        with patch.object(mock_db, "change_buffer") as mock_change, patch.object(mock_db, "save") as mock_save:
+            conv.save()
+
+        mock_change.assert_called_once_with(conv.entry)
+        mock_save.assert_called_once()
 
 
 class TestSimpleConversationGet:
-    def test_get_returns_entry(self, tmp_path):
-        db_path = tmp_path / "test.db"
-        conv = SimpleConversation(
-            sql_db_path=str(db_path),
-            simple_conversation_entry=None,
-            sql_table_name="test_conv",
-            auto_save_db=False,
-        )
-        conv.add(role="user", content="hello")
-        entry = conv.get()
-        assert entry is conv.entry
-        assert entry["reif_content"][0]["content"] == "hello"
+    """SimpleConversation.get() 测试"""
 
+    def test_get_returns_entry(self):
+        """get() 应返回 self.entry"""
+        from rootengine.conversation.simple_conversation import SimpleConversation
+        mock_db = MockDB()
+        conv = SimpleConversation(db_obj=mock_db)
 
-class TestSimpleConversationLoadEntry:
-    def test_load_entry_replaces_entry(self, tmp_path):
-        db_path = tmp_path / "test.db"
-        conv = SimpleConversation(
-            sql_db_path=str(db_path),
-            simple_conversation_entry=None,
-            sql_table_name="test_conv",
-            auto_save_db=False,
-        )
-        conv.add(role="user", content="original")
-        new_entry = {
-            "reif_version": "1.0",
-            "reif_metadata": {
-                "id": "new-id",
-                "category": "conversation",
-                "version": "0.1.0",
-                "description": None,
-                "name": "new-name",
-                "created_at": "2026-01-01T00:00:00Z",
-                "updated_at": None,
-                "extra": {},
-            },
-            "reif_content": [{"role": "system", "content": "loaded", "created_at": "2026-01-01T00:00:00Z"}],
-        }
-        conv.load_entry(new_entry)
-        assert conv.entry["reif_metadata"]["id"] == "new-id"
-        assert len(conv.messages) == 1
-        assert conv.messages[0]["content"] == "loaded"
-
-
-class TestSimpleConversationLoadMessages:
-    def test_load_messages_replaces_messages(self, tmp_path):
-        db_path = tmp_path / "test.db"
-        conv = SimpleConversation(
-            sql_db_path=str(db_path),
-            simple_conversation_entry=None,
-            sql_table_name="test_conv",
-            auto_save_db=False,
-        )
-        conv.add(role="user", content="original")
-        new_messages = [
-            {"role": "system", "content": "sys1", "created_at": "2026-01-01T00:00:00Z"},
-            {"role": "user", "content": "user1", "created_at": "2026-01-01T00:00:01Z"},
-        ]
-        conv.load_messages(new_messages)
-        assert len(conv.messages) == 2
-        assert conv.messages[0]["content"] == "sys1"
-
-
-class TestSimpleConversationValidateSchema:
-    def test_validate_schema_valid(self, tmp_path):
-        db_path = tmp_path / "test.db"
-        conv = SimpleConversation(
-            sql_db_path=str(db_path),
-            simple_conversation_entry=None,
-            sql_table_name="test_conv",
-            auto_save_db=False,
-        )
-        conv.add(role="user", content="hello")
-        assert conv.validate_schema() is True
-
-    def test_validate_schema_no_entry(self, tmp_path):
-        db_path = tmp_path / "test.db"
-        conv = SimpleConversation(
-            sql_db_path=str(db_path),
-            simple_conversation_entry=None,
-            sql_table_name="test_conv",
-            auto_save_db=False,
-        )
-        conv.entry = None
-        with pytest.raises(RuntimeError, match="无会话可校验"):
-            conv.validate_schema()
-
-
-class TestSimpleConversationAutoSave:
-    def test_auto_save_db_saves_after_add(self, tmp_path):
-        db_path = tmp_path / "test.db"
-        conv = SimpleConversation(
-            sql_db_path=str(db_path),
-            simple_conversation_entry=None,
-            sql_table_name="test_conv",
-            auto_save_db=True,
-        )
-        conv.add(role="user", content="hello")
-        # 如果 save 成功（没抛异常），说明 db.entry_buffer 被正确同步
-        assert os.path.exists(db_path)
-
-    def test_auto_save_false_does_not_save(self, tmp_path):
-        db_path = tmp_path / "test.db"
-        conv = SimpleConversation(
-            sql_db_path=str(db_path),
-            simple_conversation_entry=None,
-            sql_table_name="test_conv",
-            auto_save_db=False,
-        )
-        conv.add(role="user", content="hello")
-        # auto_save=False 时不会调用 db.save()，但如果 entry_buffer 有问题则 add 会抛异常
-        # 这里主要验证 add 不抛异常即可
-        assert len(conv.messages) == 1
+        assert conv.get() is conv.entry

@@ -36,7 +36,7 @@ class TestNoToolConversationCreate:
         """已存在的会话调用 create() 应替换为新的空会话"""
         from rootengine_core.conversation.no_tool_conversation import NoToolConversation
         conv = NoToolConversation()
-        conv.add("user", "hello")
+        conv.append("user", "hello")
         assert len(conv.messages) == 1
 
         new_entry = conv.create()
@@ -46,71 +46,71 @@ class TestNoToolConversationCreate:
         # 原消息仍在 self.messages 中（符合原 BaseConversation 行为）
 
 
-class TestNoToolConversationAdd:
-    """NoToolConversation.add() 测试"""
+class TestNoToolConversationAppend:
+    """NoToolConversation.append() 测试"""
 
     @pytest.fixture
     def conv(self):
         from rootengine_core.conversation.no_tool_conversation import NoToolConversation
         return NoToolConversation()
 
-    def test_add_user_message(self, conv):
+    def test_append_user_message(self, conv):
         """添加 user 消息"""
         with patch("rootengine_core.conversation.no_tool_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
-            conv.add("user", "hello")
+            conv.append("user", "hello")
 
         assert len(conv.messages) == 1
         assert conv.messages[0]["role"] == "user"
         assert conv.messages[0]["content"] == "hello"
         assert conv.messages[0]["created_at"] == "2024-01-01T00:00:00Z"
 
-    def test_add_system_message(self, conv):
+    def test_append_system_message(self, conv):
         """添加 system 消息"""
         with patch("rootengine_core.conversation.no_tool_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
-            conv.add("system", "you are helpful")
+            conv.append("system", "you are helpful")
 
         assert conv.messages[0]["role"] == "system"
         assert conv.messages[0]["content"] == "you are helpful"
 
-    def test_add_assistant_message(self, conv):
+    def test_append_assistant_message(self, conv):
         """添加 assistant 消息"""
         with patch("rootengine_core.conversation.no_tool_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
-            conv.add("assistant", "hello!")
+            conv.append("assistant", "hello!")
 
         assert conv.messages[0]["role"] == "assistant"
 
-    def test_add_auto_timestamp(self, conv):
+    def test_append_auto_timestamp(self, conv):
         """未传 created_at 时应自动生成"""
         with patch("rootengine_core.conversation.no_tool_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
-            conv.add("user", "hello")
+            conv.append("user", "hello")
 
         assert conv.messages[0]["created_at"] == "2024-01-01T00:00:00Z"
 
-    def test_add_with_extra(self, conv):
+    def test_append_with_extra(self, conv):
         """添加带 extra 的消息"""
         extra = {"key": "value"}
-        conv.add("user", "hello", extra=extra)
+        conv.append("user", "hello", extra=extra)
 
         assert conv.messages[0]["extra"] == extra
 
-    def test_add_invalid_role(self, conv):
+    def test_append_invalid_role(self, conv):
         """无效角色应抛出 ValueError"""
         with pytest.raises(ValueError) as exc_info:
-            conv.add("invalid_role", "hello")
+            conv.append("invalid_role", "hello")
 
         assert "invalid_role" in str(exc_info.value)
 
-    def test_add_returns_self(self, conv):
+    def test_append_returns_self(self, conv):
         """add() 应返回 self，支持链式调用"""
         with patch("rootengine_core.conversation.no_tool_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
-            result = conv.add("user", "hello")
+            result = conv.append("user", "hello")
 
         assert result is conv
 
-    def test_add_chain(self, conv):
+    def test_append_chain(self, conv):
         """链式调用"""
         with patch("rootengine_core.conversation.no_tool_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
-            conv.add("system", "you are helpful").add("user", "hello").add("assistant", "hi!")
+            conv.append("system", "you are helpful").append("user", "hello").append("assistant", "hi!")
 
         assert len(conv.messages) == 3
         assert [m["role"] for m in conv.messages] == ["system", "user", "assistant"]
@@ -124,7 +124,7 @@ class TestNoToolConversationDelete:
         from rootengine_core.conversation.no_tool_conversation import NoToolConversation
         with patch("rootengine_core.conversation.no_tool_conversation.get_iso_timestamp", return_value="2024-01-01T00:00:00Z"):
             conv = NoToolConversation()
-            conv.add("system", "sys").add("user", "user1").add("assistant", "asy")
+            conv.append("system", "sys").append("user", "user1").append("assistant", "asy")
         return conv
 
     def test_delete_last(self, conv_with_messages):

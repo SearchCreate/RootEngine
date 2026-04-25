@@ -32,7 +32,7 @@
               "description": "call=LLM 请求工具，result=工具返回结果"
             }
           },
-          "required": ["tool_record_id", "tool_record_path", "type"]
+          "required": ["tool_record_id", "type"]
         }
       },
       "created_at": {

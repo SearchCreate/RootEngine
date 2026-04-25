@@ -21,3 +21,9 @@ class BaseBufferDB(ABC):
     def get(self):
         """返回内容"""
         pass
+    @abstractmethod
+    def close(self):
+        """关闭数据库链接，若不需要，直接写 pass 即可"""
+    @abstractmethod
+    def change_buffer(self,new_buffer:dict):
+        """更改 类中 缓存"""

@@ -189,6 +189,21 @@ class RootEngineBufferSQL(BaseBufferDB):
         """返回缓存中的记忆"""
         return self.entry_buffer
 
+    def change_buffer(self,new_buffer:dict):
+        """更改 类中 缓存"""
+        self.entry_buffer = new_buffer
+        return self
+
+    def get_config(self):
+        """返回该类的元数据"""
+        return {
+            "db_obj_name": self.__class__.__name__,
+            "path": self.path,
+            "category": self.category,
+            "id": self.id,
+            "table_name": self.table_name
+        }
+
 
 
 

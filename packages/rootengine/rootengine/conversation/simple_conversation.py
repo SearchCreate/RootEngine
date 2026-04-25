@@ -1,52 +1,48 @@
 from rootengine_core import BaseConversation
-from rootengine_core.utils import get_iso_timestamp,validate_reif
-from ..db import RootEngineBufferSQL
+from rootengine_core.utils import get_iso_timestamp,validate_reif,REIFFunction
 from ..constants.conversation import CONVERSATION_ROLE
 from jsonschema import validate
 from ..schema.runtime.frame_schema import get_json
 SCHEMA = get_json("conversation.simple_conversation")
-
-
+from ..db.base_buffer_db import BaseBufferDB
 
 
 class SimpleConversation(BaseConversation):
     def __init__(self,
-                 sql_db_path:str,
-                 simple_conversation_entry: dict = None,
-                 sql_table_name:str=None,
+                 db_obj:object,
                  auto_save_db:bool = True
                  ):
         """
-
-        :param sql_db_path:硬盘的 sql 数据库 文件路径
-        :param simple_conversation_entry: 初始的 simple_conversation 条目 ，若不传则自动生成新的
-        :param sql_table_name: sql 文件中的表名
+        :param db_obj: BaseBufferDB 的子类
         :param auto_save_db: 每次修改后自动保存
         """
         self.auto_save_db = auto_save_db
+        self.REIFFunction = REIFFunction()
 
-        # 如果未传自动创建新的a
-        self.entry = simple_conversation_entry
-        if self.entry is None:
-            super().create()
+        #检查 db_obj 是否是 BaseBufferDB 的子类
+        if not issubclass(db_obj.__class__, BaseBufferDB):
+            raise TypeError(f"{db_obj.__class__.__name__} 不是 BaseConversation 的子类")
+        self.db = db_obj
 
-        self.metadata = self.entry["reif_metadata"]
+        temp_entry = self.db.get()
+        # 如果未传自动创建新的
+        if temp_entry is None:
+            self.entry  = self.create()
+        else :
+            self.entry = temp_entry
+
 
         self.messages = self.entry["reif_content"]
 
-
-        # 建立 sql数据库
-        self.db = RootEngineBufferSQL(
-            path=sql_db_path,
-            category="conversation",
-            id=self.metadata["id"],
-            table_name=sql_table_name,
-            init_create_table=True
-        )
         # 将 entry 同步到 db 的 entry_buffer，避免 save() 时 entry_buffer 为 None
-        self.db.entry_buffer = self.entry
+        self.db.change_buffer(self.entry)
 
-    def add(
+     def create(self):
+        _entry = self.REIFFunction.create(reif_params={"category": "conversation"})
+        _entry["reif_metadata"]["extra"] = {"db_obj": self.db.get_metadata()}
+        _entry["reif_content"] = []
+        return _entry
+    def append(
             self,
             role: str,
             content: str = None,
@@ -114,25 +110,28 @@ class SimpleConversation(BaseConversation):
 
         self.messages.append(item)
         if self.auto_save_db:
-            self.db.save()
+            self.save()
         return self
 
     def delete(self, index: int = None):
-        super().delete(index)
+        if index is None:
+            self.messages.pop()
+        else:
+            self.messages.pop(index)
         if self.auto_save_db:
-            self.db.save()
+            self.save()
         return self
     def load_entry(self,entry: dict):
-        super().load_entry(entry)
-        self.db.entry_buffer = self.entry
+        self.entry = entry
+        self.messages = self.entry["reif_content"]
         if self.auto_save_db:
-            self.db.save()
+            self.save()
         return self
     def load_messages(self,messages: list):
-        super().load_messages(messages)
-        self.db.entry_buffer = self.entry
+        self.messages = messages
+        self.entry["reif_content"] = self.messages
         if self.auto_save_db:
-            self.db.save()
+            self.save()
         return self
 
 
@@ -146,11 +145,13 @@ class SimpleConversation(BaseConversation):
 
 
 
-
+    def save(self):
+        self.db.change_buffer(self.entry)
+        self.db.save()
+        return self
 
     def get(self) -> dict:
         return self.entry
-
 
 
 

@@ -4,7 +4,7 @@ class BaseConversation(ABC):
     BaseConversation 是一个 会话类 的抽象基类
     """
     @abstractmethod
-    def add(self, *args, **kwargs):
+    def append(self, *args, **kwargs):
         """向会话里添加一条信息"""
         pass
     @abstractmethod

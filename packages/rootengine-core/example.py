@@ -37,8 +37,8 @@ agent = None  # 将来注入智能体
 tool = Tool(tool_registry_entry, agent, tool_func_map)
 
 conv = BaseConversation()
-conv.add("system", "你是一个有帮助的助手")
-conv.add("user", "请调用 example_tool，参数为 'example'")
+conv.append("system", "你是一个有帮助的助手")
+conv.append("user", "请调用 example_tool，参数为 'example'")
 
 # 模拟 LLM 返回工具调用
 mock_llm_response = {
@@ -81,7 +81,7 @@ class ChangeCONVERSATION_ROLE:
         self.CONVERSATION_ROLE.pop()
 
 with ChangeCONVERSATION_ROLE(["tool"]):
-    conv.add("tool", str(tool_result["function"]["result_content"]))
+    conv.append("tool", str(tool_result["function"]["result_content"]))
 
 
 

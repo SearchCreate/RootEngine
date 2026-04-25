@@ -8,7 +8,7 @@ class ToolRecord:
     def __init__(self,db_obj):
         self.reif_function = REIFFunction()
 
-        self.db_obj = BaseBufferDB()
+        self.db_obj = db_obj
 
         _init_entry = self.read()
         # 若没有，自动新建

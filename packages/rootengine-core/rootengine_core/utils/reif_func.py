@@ -160,7 +160,7 @@ reif_validate = validate_reif
 class REIFFunction:
     def __init__(self,reif_schema=None):
         self.reif_schema = reif_schema if reif_schema else SCHEMA
-    def create(self,reif_params):
+    def create(self,reif_params,tojson:bool = False):
         '''
 
         :param reif_params:
@@ -179,9 +179,9 @@ class REIFFunction:
         "reif_content":条目所储存的内容（选填，默认None）"
         必填：，"category"
         :param tojson:False -> python字典 | Ture -> json字符串
-        :return:配置好的REIF格式的 python字典 或 json字符串
+        :return:配置好的REIF格式的 python字典(默认) 或 json字符串（:param tojson is Ture）
         '''
-        return create_reif(reif_params)
+        return create_reif(reif_params,tojson)
 
     def load(self, reif_params):
         """加载reif entry ,用 reif_content 替换 reif_params 生成的reif entry 的 ’reif_content‘字段"""

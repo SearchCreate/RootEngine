@@ -17,3 +17,7 @@
 - 更新 generate_json_dict.py 注释示例
 - 修复 create() 返回类型（返回 entry dict 而非 self）
 - 微调 CHANGELOG 格式
+
+## [0.5.8] 2026-4-25
+
+- 把 conversation 的 add 方法 改成了 append ，更符合语义。删掉了add，关于这个add方法，不向后兼容

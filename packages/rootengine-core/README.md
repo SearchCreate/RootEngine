@@ -39,8 +39,8 @@ REIF（RootEngine Information Format）是一套信息格式规范，定义了 A
 from rootengine_core import BaseConversation
 
 conv = BaseConversation()
-conv.add("system", "你是一个有帮助的助手")
-conv.add("user", "你好")
+conv.append("system", "你是一个有帮助的助手")
+conv.append("user", "你好")
 
 print(conv.messages)
 # [

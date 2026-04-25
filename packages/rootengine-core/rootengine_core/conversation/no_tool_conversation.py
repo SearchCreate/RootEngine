@@ -25,7 +25,7 @@ class NoToolConversation(BaseConversation):
         _entry["reif_content"] = []
         return _entry
 
-    def add(
+    def append(
             self ,
             role: str,
             content: str = None,
